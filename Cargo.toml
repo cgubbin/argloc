@@ -1,0 +1,37 @@
+[package]
+name = "apm"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Rust project template with library and binary"
+license = "MIT"
+
+[lib]
+name = "apm"
+path = "src/lib.rs"
+
+
+[dependencies]
+nalgebra = "0.33.3"
+num-traits = "0.2.19"
+quad-rs = "0.4.0"
+quadtree_core = "0.3.0"
+thiserror = "2.0.18"
+
+[dev-dependencies]
+approx = "0.5.1"
+num-complex = "0.4.6"
+
+
+[profile.dev]
+debug = true
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+
+[workspace.metadata.release]
+tag = true
+push = true
+publish = true
+sign-commit = false

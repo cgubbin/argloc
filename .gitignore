@@ -1,0 +1,20 @@
+# Rust
+target/
+
+# Coverage / profiling
+tarpaulin-report.html
+coverage/
+*.profraw
+*.profdata
+
+# Criterion output
+target/criterion/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Nix / direnv
+.direnv/
+result

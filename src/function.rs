@@ -14,6 +14,7 @@
 //!
 //! The derivative is kept explicit rather than approximated numerically,
 //! improving both robustness and numerical accuracy of the contour integrals.
+//!
 
 /// A holomorphic function over the complex plane.
 ///

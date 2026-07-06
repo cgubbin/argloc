@@ -20,8 +20,14 @@
 //! an individual root location.
 
 use nalgebra::ComplexField;
-use num_traits::{Float, FromPrimitive, Zero};
-use quad_rs::ComplexScalar;
+use num_traits::{Float, FromPrimitive};
+use quad_rs::{ComplexScalar, IntegrableFloat, IntegrationOutput, IntegratorConfig};
+use quadtree_core::Rect;
+
+use crate::{
+    ArgumentError, ArgumentLeaf, HolomorphicFunction, argument::compute_moment,
+    oracle::rectangle_contour,
+};
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
 pub enum LocalisationError {
@@ -37,7 +43,7 @@ pub enum LocalisationError {
 
 /// A root or root-cluster estimate produced from contour moments.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct RootEstimate<C> {
+pub struct RootEstimate<C: ComplexField> {
     /// Estimated location.
     ///
     /// For a single root this is the root estimate. For multiple roots this is
@@ -46,6 +52,8 @@ pub struct RootEstimate<C> {
 
     /// Number of enclosed roots counted with multiplicity.
     pub multiplicity: usize,
+
+    pub enclosure: Rect<C::RealField>,
 
     /// Whether this estimate represents one root or a cluster centroid.
     pub kind: RootEstimateKind,
@@ -57,203 +65,166 @@ pub enum RootEstimateKind {
     ClusterCentroid,
 }
 
-/// Computes the multiplicity-weighted centroid of enclosed roots.
-///
-/// Returns `None` if `root_count <= 0`.
-pub fn centroid<C>(root_count: isize, first_moment: C) -> Option<C>
+pub fn localise_from_cells<F, C>(
+    function: &F,
+    leaves: &[ArgumentLeaf<C::RealField>],
+    integrator_config: IntegratorConfig<C::RealField>,
+    zero_tol: C::RealField,
+) -> Result<Vec<RootEstimate<C>>, ArgumentError<C>>
 where
-    C: ComplexField,
-    C::RealField: ComplexScalar<Complex = C> + Float + FromPrimitive + Zero,
+    F: HolomorphicFunction<Complex = C>,
+    C: ComplexField + Copy + IntegrationOutput<C, Float = C::RealField>,
+    C::RealField: Float + FromPrimitive + IntegrableFloat + ComplexScalar<Complex = C>,
 {
-    if root_count <= 0 {
-        return None;
+    let mut roots = Vec::new();
+
+    for leaf in leaves {
+        if leaf.data.root_count <= 0 {
+            continue;
+        }
+
+        let contour = rectangle_contour(leaf.bounds);
+
+        let first_moment =
+            compute_moment(function, contour, integrator_config.clone(), 1, zero_tol)?;
+
+        let n = leaf.data.root_count;
+        let n_complex = C::from_real(C::RealField::from_isize(n).unwrap());
+
+        let location = first_moment.moment / n_complex;
+
+        let kind = if n == 1 {
+            RootEstimateKind::SingleRoot
+        } else {
+            RootEstimateKind::ClusterCentroid
+        };
+
+        roots.push(RootEstimate {
+            location,
+            multiplicity: n as usize,
+            enclosure: leaf.bounds,
+            kind,
+        });
     }
 
-    Some(
-        first_moment
-            / <<C as ComplexField>::RealField as ComplexScalar>::complex(
-                <<C as ComplexField>::RealField as FromPrimitive>::from_isize(root_count).unwrap(),
-                <<C as ComplexField>::RealField as Zero>::zero(),
-            ),
-    )
+    Ok(roots)
 }
 
-/// Builds a root or cluster estimate from the first moment.
-pub fn estimate_from_first_moment<C>(
-    root_count: isize,
-    first_moment: C,
-) -> Result<RootEstimate<C>, LocalisationError>
-where
-    C: ComplexField,
-    C::RealField: ComplexScalar<Complex = C> + Float + FromPrimitive + Zero,
-{
-    if root_count < 0 {
-        return Err(LocalisationError::NegativeRootCount(root_count));
-    }
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use approx::assert_relative_eq;
+//     use num_complex::Complex;
 
-    if root_count == 0 {
-        return Err(LocalisationError::ZeroRootCount);
-    }
+//     const TOL: f64 = 1e-12;
 
-    let location = centroid(root_count, first_moment).expect("root_count already checked positive");
+//     #[test]
+//     fn centroid_returns_none_for_zero_count() {
+//         let moment = Complex::new(1.0, 2.0);
 
-    let multiplicity = root_count as usize;
+//         assert_eq!(centroid(0, moment), None);
+//     }
 
-    let kind = if root_count == 1 {
-        RootEstimateKind::SingleRoot
-    } else {
-        RootEstimateKind::ClusterCentroid
-    };
+//     #[test]
+//     fn centroid_returns_none_for_negative_count() {
+//         let moment = Complex::new(1.0, 2.0);
 
-    Ok(RootEstimate {
-        location,
-        multiplicity,
-        kind,
-    })
-}
+//         assert_eq!(centroid(-1, moment), None);
+//     }
 
-/// Builds a single-root estimate from the first moment.
-///
-/// This is stricter than [`estimate_from_first_moment`]: it rejects multi-root
-/// contours instead of returning a cluster centroid.
-pub fn single_root_from_first_moment<C>(
-    root_count: isize,
-    first_moment: C,
-) -> Result<RootEstimate<C>, LocalisationError>
-where
-    C: ComplexField,
-    C::RealField: ComplexScalar<Complex = C> + Float + FromPrimitive + Zero,
-{
-    if root_count == 1 {
-        return estimate_from_first_moment(root_count, first_moment);
-    }
+//     #[test]
+//     fn centroid_of_single_root_is_first_moment() {
+//         let moment = Complex::new(0.25, -0.5);
 
-    if root_count < 0 {
-        return Err(LocalisationError::NegativeRootCount(root_count));
-    }
+//         let c = centroid(1, moment).unwrap();
 
-    if root_count == 0 {
-        return Err(LocalisationError::ZeroRootCount);
-    }
+//         assert_relative_eq!(c.re, moment.re, epsilon = TOL);
+//         assert_relative_eq!(c.im, moment.im, epsilon = TOL);
+//     }
 
-    Err(LocalisationError::MultipleRoots(root_count))
-}
+//     #[test]
+//     fn centroid_of_two_roots_is_mean_location() {
+//         let a = Complex::new(0.2, 0.1);
+//         let b = Complex::new(-0.4, 0.3);
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use approx::assert_relative_eq;
-    use num_complex::Complex;
+//         let first_moment = a + b;
 
-    const TOL: f64 = 1e-12;
+//         let c = centroid(2, first_moment).unwrap();
+//         let expected = (a + b) / Complex::new(2.0, 0.0);
 
-    #[test]
-    fn centroid_returns_none_for_zero_count() {
-        let moment = Complex::new(1.0, 2.0);
+//         assert_relative_eq!(c.re, expected.re, epsilon = TOL);
+//         assert_relative_eq!(c.im, expected.im, epsilon = TOL);
+//     }
 
-        assert_eq!(centroid(0, moment), None);
-    }
+//     #[test]
+//     fn centroid_counts_multiplicity() {
+//         let root = Complex::new(0.2, -0.1);
+//         let first_moment = Complex::new(3.0, 0.0) * root;
 
-    #[test]
-    fn centroid_returns_none_for_negative_count() {
-        let moment = Complex::new(1.0, 2.0);
+//         let c = centroid(3, first_moment).unwrap();
 
-        assert_eq!(centroid(-1, moment), None);
-    }
+//         assert_relative_eq!(c.re, root.re, epsilon = TOL);
+//         assert_relative_eq!(c.im, root.im, epsilon = TOL);
+//     }
 
-    #[test]
-    fn centroid_of_single_root_is_first_moment() {
-        let moment = Complex::new(0.25, -0.5);
+//     #[test]
+//     fn estimate_from_first_moment_returns_single_root_estimate() {
+//         let root = Complex::new(0.3, -0.2);
 
-        let c = centroid(1, moment).unwrap();
+//         let estimate = estimate_from_first_moment(1, root).unwrap();
 
-        assert_relative_eq!(c.re, moment.re, epsilon = TOL);
-        assert_relative_eq!(c.im, moment.im, epsilon = TOL);
-    }
+//         assert_eq!(estimate.multiplicity, 1);
+//         assert_eq!(estimate.kind, RootEstimateKind::SingleRoot);
+//         assert_relative_eq!(estimate.location.re, root.re, epsilon = TOL);
+//         assert_relative_eq!(estimate.location.im, root.im, epsilon = TOL);
+//     }
 
-    #[test]
-    fn centroid_of_two_roots_is_mean_location() {
-        let a = Complex::new(0.2, 0.1);
-        let b = Complex::new(-0.4, 0.3);
+//     #[test]
+//     fn estimate_from_first_moment_returns_cluster_centroid_for_multiple_roots() {
+//         let a = Complex::new(0.2, 0.1);
+//         let b = Complex::new(-0.4, 0.3);
 
-        let first_moment = a + b;
+//         let estimate = estimate_from_first_moment(2, a + b).unwrap();
 
-        let c = centroid(2, first_moment).unwrap();
-        let expected = (a + b) / Complex::new(2.0, 0.0);
+//         assert_eq!(estimate.multiplicity, 2);
+//         assert_eq!(estimate.kind, RootEstimateKind::ClusterCentroid);
 
-        assert_relative_eq!(c.re, expected.re, epsilon = TOL);
-        assert_relative_eq!(c.im, expected.im, epsilon = TOL);
-    }
+//         let expected = (a + b) / Complex::new(2.0, 0.0);
 
-    #[test]
-    fn centroid_counts_multiplicity() {
-        let root = Complex::new(0.2, -0.1);
-        let first_moment = Complex::new(3.0, 0.0) * root;
+//         assert_relative_eq!(estimate.location.re, expected.re, epsilon = TOL);
+//         assert_relative_eq!(estimate.location.im, expected.im, epsilon = TOL);
+//     }
 
-        let c = centroid(3, first_moment).unwrap();
+//     #[test]
+//     fn estimate_from_first_moment_rejects_zero_count() {
+//         let err = estimate_from_first_moment(0, Complex::<f64>::new(1.0, 0.0)).unwrap_err();
 
-        assert_relative_eq!(c.re, root.re, epsilon = TOL);
-        assert_relative_eq!(c.im, root.im, epsilon = TOL);
-    }
+//         assert_eq!(err, LocalisationError::ZeroRootCount);
+//     }
 
-    #[test]
-    fn estimate_from_first_moment_returns_single_root_estimate() {
-        let root = Complex::new(0.3, -0.2);
+//     #[test]
+//     fn estimate_from_first_moment_rejects_negative_count() {
+//         let err = estimate_from_first_moment(-1, Complex::<f64>::new(1.0, 0.0)).unwrap_err();
 
-        let estimate = estimate_from_first_moment(1, root).unwrap();
+//         assert_eq!(err, LocalisationError::NegativeRootCount(-1));
+//     }
 
-        assert_eq!(estimate.multiplicity, 1);
-        assert_eq!(estimate.kind, RootEstimateKind::SingleRoot);
-        assert_relative_eq!(estimate.location.re, root.re, epsilon = TOL);
-        assert_relative_eq!(estimate.location.im, root.im, epsilon = TOL);
-    }
+//     #[test]
+//     fn single_root_from_first_moment_accepts_one_root() {
+//         let root = Complex::new(0.3, 0.4);
 
-    #[test]
-    fn estimate_from_first_moment_returns_cluster_centroid_for_multiple_roots() {
-        let a = Complex::new(0.2, 0.1);
-        let b = Complex::new(-0.4, 0.3);
+//         let estimate = single_root_from_first_moment(1, root).unwrap();
 
-        let estimate = estimate_from_first_moment(2, a + b).unwrap();
+//         assert_eq!(estimate.kind, RootEstimateKind::SingleRoot);
+//         assert_eq!(estimate.multiplicity, 1);
+//         assert_relative_eq!(estimate.location.re, root.re, epsilon = TOL);
+//         assert_relative_eq!(estimate.location.im, root.im, epsilon = TOL);
+//     }
 
-        assert_eq!(estimate.multiplicity, 2);
-        assert_eq!(estimate.kind, RootEstimateKind::ClusterCentroid);
+//     #[test]
+//     fn single_root_from_first_moment_rejects_multiple_roots() {
+//         let err = single_root_from_first_moment(2, Complex::<f64>::new(1.0, 0.0)).unwrap_err();
 
-        let expected = (a + b) / Complex::new(2.0, 0.0);
-
-        assert_relative_eq!(estimate.location.re, expected.re, epsilon = TOL);
-        assert_relative_eq!(estimate.location.im, expected.im, epsilon = TOL);
-    }
-
-    #[test]
-    fn estimate_from_first_moment_rejects_zero_count() {
-        let err = estimate_from_first_moment(0, Complex::<f64>::new(1.0, 0.0)).unwrap_err();
-
-        assert_eq!(err, LocalisationError::ZeroRootCount);
-    }
-
-    #[test]
-    fn estimate_from_first_moment_rejects_negative_count() {
-        let err = estimate_from_first_moment(-1, Complex::<f64>::new(1.0, 0.0)).unwrap_err();
-
-        assert_eq!(err, LocalisationError::NegativeRootCount(-1));
-    }
-
-    #[test]
-    fn single_root_from_first_moment_accepts_one_root() {
-        let root = Complex::new(0.3, 0.4);
-
-        let estimate = single_root_from_first_moment(1, root).unwrap();
-
-        assert_eq!(estimate.kind, RootEstimateKind::SingleRoot);
-        assert_eq!(estimate.multiplicity, 1);
-        assert_relative_eq!(estimate.location.re, root.re, epsilon = TOL);
-        assert_relative_eq!(estimate.location.im, root.im, epsilon = TOL);
-    }
-
-    #[test]
-    fn single_root_from_first_moment_rejects_multiple_roots() {
-        let err = single_root_from_first_moment(2, Complex::<f64>::new(1.0, 0.0)).unwrap_err();
-
-        assert_eq!(err, LocalisationError::MultipleRoots(2));
-    }
-}
+//         assert_eq!(err, LocalisationError::MultipleRoots(2));
+//     }
+// }

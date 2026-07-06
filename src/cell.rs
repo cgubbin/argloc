@@ -35,6 +35,7 @@ use quadtree_core::CellScore;
 /// More expensive information, such as contour moments, is not stored here by
 /// default. Moments are better computed in a later localisation pass, and only
 /// for cells that actually contain roots.
+#[derive(Debug, Clone)]
 pub struct ArgumentCell<F> {
     /// Estimated number of roots enclosed by the cell contour.
     ///

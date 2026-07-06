@@ -15,7 +15,7 @@ path = "src/lib.rs"
 nalgebra = "0.33.3"
 num-traits = "0.2.19"
 quad-rs = "0.4.0"
-quadtree_core = "0.3.0"
+quadtree_core = {path = "../quadtree"}
 thiserror = "2.0.18"
 
 [dev-dependencies]

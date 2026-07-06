@@ -192,8 +192,6 @@ dependencies = [
 [[package]]
 name = "quadtree_core"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a44b0ac8ed97adcb2487807e1c797c0e800e6419d1108f90a94a58562713f30"
 dependencies = [
  "num-traits",
  "thiserror",

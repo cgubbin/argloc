@@ -22,25 +22,38 @@ use quad_rs::{
     ComplexScalar, Contour, FallibleIntegrable, IntegrableFloat, IntegrationOutput,
     IntegratorConfig, IntegratorError, integrate_complex_fallible,
 };
+use quadtree_core::{Rect, ScalerError};
 
 use crate::function::HolomorphicFunction;
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum ArgumentError<C: ComplexField> {
     #[error("error in integrand evaluation: {0}")]
-    Integrand(#[from] LogDerivativeError<C>),
+    IntegrandEvaluation(#[from] LogDerivativeError<C>),
 
     #[error("contour integration failed: {0}")]
     Integration(MinimalIntegratorError<C>),
 
     #[error("computed winding {winding:?} is not close to an integer; residual={residual:?}")]
     NonIntegerWinding { winding: C, residual: C::RealField },
+
+    #[error("failure in internal scaling: {0}")]
+    Scaling(#[from] ScalerError<C::RealField>),
+
+    #[error("boundary singularity at raw {raw_z:?}, scaled {scaled_z:?}")]
+    BoundarySingularity {
+        raw_z: C,
+        scaled_z: C,
+        raw_bounds: Rect<C::RealField>,
+        scaled_bounds: Rect<C::RealField>,
+        source: LogDerivativeError<C>,
+    },
 }
 
 impl<C: ComplexField> From<IntegratorError<C, LogDerivativeError<C>>> for ArgumentError<C> {
     fn from(value: IntegratorError<C, LogDerivativeError<C>>) -> Self {
         match value {
-            IntegratorError::User(error) => Self::Integrand(error),
+            IntegratorError::User(error) => Self::IntegrandEvaluation(error),
             IntegratorError::ExceededMaxFunctionEvaluations => {
                 Self::Integration(MinimalIntegratorError::ExceededMaxFunctionEvaluations)
             }

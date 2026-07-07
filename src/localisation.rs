@@ -29,18 +29,6 @@ use crate::{
     oracle::rectangle_contour,
 };
 
-#[derive(thiserror::Error, Debug, Clone, PartialEq)]
-pub enum LocalisationError {
-    #[error("cannot localise roots when root count is zero")]
-    ZeroRootCount,
-
-    #[error("cannot localise individual root from a multi-root cluster with count {0}")]
-    MultipleRoots(isize),
-
-    #[error("negative root count {0}; poles are not supported by this localiser")]
-    NegativeRootCount(isize),
-}
-
 /// A root or root-cluster estimate produced from contour moments.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SingularPointEstimate<C: ComplexField> {

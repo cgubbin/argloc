@@ -4,10 +4,7 @@ use quadtree_core::{
     split_rect_at,
 };
 
-use crate::{
-    argument::{ArgumentError, LogDerivativeError},
-    cell::ArgumentCell,
-};
+use crate::{argument::ArgumentError, cell::ArgumentCell};
 
 pub struct ShiftSplitOnBoundary<T> {
     pub shift_fraction: T,
@@ -76,6 +73,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::argument::LogDerivativeError;
 
     use num_complex::Complex;
     use quadtree_core::Scaler2D;

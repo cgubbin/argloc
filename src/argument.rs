@@ -119,11 +119,13 @@ pub enum LogDerivativeError<C: ComplexField> {
 /// Besides the root count, the contour moments may be used to estimate the
 /// centroid of enclosed roots or initialise subsequent localisation
 /// algorithms.
+#[allow(dead_code)]
 pub struct ArgumentData<C: ComplexField> {
     pub winding: WindingData<C>,
     pub first_moment: MomentData<C>,
 }
 
+#[allow(dead_code)]
 pub struct WindingData<C: ComplexField> {
     pub winding: C,
     pub root_count: isize,
@@ -131,6 +133,7 @@ pub struct WindingData<C: ComplexField> {
     pub integration_error: C::RealField,
 }
 
+#[allow(dead_code)]
 pub struct MomentData<C: ComplexField> {
     pub power: usize,
     pub moment: C,
@@ -267,6 +270,7 @@ where
     Ok(value)
 }
 
+#[allow(dead_code)]
 pub fn compute_argument_data<C, F>(
     function: &F,
     contour: Contour<C::RealField>,

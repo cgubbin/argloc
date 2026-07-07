@@ -162,9 +162,7 @@ pub use quad_rs::IntegratorConfig;
 use nalgebra::ComplexField;
 use num_traits::{Float, FromPrimitive};
 use quad_rs::{ComplexScalar, IntegrableFloat, IntegrationOutput};
-use quadtree_core::{QuadTree, QuadTreeError};
 
-use crate::{cell::ArgumentCell, subdivision::SubdivisionError};
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq)]
 pub enum SearchTarget {

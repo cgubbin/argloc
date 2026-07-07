@@ -1,4 +1,4 @@
-use argloc::{ArgumentConfig, HolomorphicFunction, SearchTarget, find_singularities};
+use argloc::{ArgumentConfig, ComplexFunction, SearchTarget, find_singularities};
 use num_complex::Complex;
 use quad_rs::IntegratorConfig;
 use quadtree_core::{QuadTreeConfig, Rect};
@@ -6,7 +6,7 @@ use quadtree_core::{QuadTreeConfig, Rect};
 #[derive(Debug, Clone, Copy)]
 struct CubicUnity;
 
-impl HolomorphicFunction for CubicUnity {
+impl ComplexFunction for CubicUnity {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {

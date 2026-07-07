@@ -1,4 +1,4 @@
-use argloc::{ArgumentConfig, HolomorphicFunction, find_poles};
+use argloc::{ArgumentConfig, ComplexFunction, find_poles};
 use num_complex::Complex;
 use quad_rs::IntegratorConfig;
 use quadtree_core::{QuadTreeConfig, Rect};
@@ -6,7 +6,7 @@ use quadtree_core::{QuadTreeConfig, Rect};
 #[derive(Debug, Clone, Copy)]
 struct ReciprocalQuadratic;
 
-impl HolomorphicFunction for ReciprocalQuadratic {
+impl ComplexFunction for ReciprocalQuadratic {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {

@@ -24,7 +24,7 @@ use quad_rs::{
 };
 use quadtree_core::{Rect, ScalerError};
 
-use crate::{SearchTarget, function::HolomorphicFunction};
+use crate::{SearchTarget, function::ComplexFunction};
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum ArgumentError<C: ComplexField> {
@@ -156,7 +156,7 @@ pub struct LogDerivative<'a, F, T> {
 
 impl<'a, F> FallibleIntegrable for LogDerivative<'a, F, <F::Complex as ComplexField>::RealField>
 where
-    F: HolomorphicFunction,
+    F: ComplexFunction,
     F::Complex: ComplexField + Copy,
     <F::Complex as ComplexField>::RealField: IntegrableFloat,
 {
@@ -195,7 +195,7 @@ use num_traits::{One, Zero};
 impl<'a, F> FallibleIntegrable
     for LogDerivativeMoment<'a, F, <F::Complex as ComplexField>::RealField>
 where
-    F: HolomorphicFunction,
+    F: ComplexFunction,
     F::Complex: ComplexField + Copy,
     <F::Complex as ComplexField>::RealField:
         IntegrableFloat + ComplexScalar<Complex = F::Complex> + One + Zero,
@@ -237,7 +237,7 @@ fn checked_log_derivative<F>(
     zero_tol: <F::Complex as ComplexField>::RealField,
 ) -> Result<F::Complex, LogDerivativeError<F::Complex>>
 where
-    F: HolomorphicFunction,
+    F: ComplexFunction,
     F::Complex: ComplexField + Copy,
 {
     let fz = function.value(z);
@@ -278,7 +278,7 @@ where
     C: ComplexField + IntegrationOutput<C, Float = C::RealField> + Copy,
     <C as ComplexField>::RealField:
         ComplexScalar<Complex = C> + IntegrableFloat + FromPrimitive + ToPrimitive,
-    F: HolomorphicFunction<Complex = C>,
+    F: ComplexFunction<Complex = C>,
 {
     let winding = compute_winding(
         function,
@@ -306,7 +306,7 @@ where
     C: ComplexField + IntegrationOutput<C, Float = C::RealField> + Copy,
     <C as ComplexField>::RealField:
         ComplexScalar<Complex = C> + IntegrableFloat + FromPrimitive + ToPrimitive,
-    F: HolomorphicFunction<Complex = C>,
+    F: ComplexFunction<Complex = C>,
 {
     let result = integrate_complex_fallible(LogDerivative { function, zero_tol }, contour, config)?;
 
@@ -339,7 +339,7 @@ where
     C: ComplexField + IntegrationOutput<C, Float = C::RealField> + Copy,
     <C as ComplexField>::RealField:
         ComplexScalar<Complex = C> + IntegrableFloat + FromPrimitive + ToPrimitive,
-    F: HolomorphicFunction<Complex = C>,
+    F: ComplexFunction<Complex = C>,
 {
     let result = integrate_complex_fallible(
         LogDerivativeMoment {
@@ -374,7 +374,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::function::HolomorphicFunction;
+    use crate::function::ComplexFunction;
 
     use approx::assert_relative_eq;
     use num_complex::Complex;
@@ -403,7 +403,7 @@ mod tests {
         root: Complex<f64>,
     }
 
-    impl HolomorphicFunction for Linear {
+    impl ComplexFunction for Linear {
         type Complex = Complex<f64>;
 
         fn value(&self, z: Complex<f64>) -> Complex<f64> {
@@ -480,7 +480,7 @@ mod tests {
         b: Complex<f64>,
     }
 
-    impl HolomorphicFunction for Quadratic {
+    impl ComplexFunction for Quadratic {
         type Complex = Complex<f64>;
         fn value(&self, z: Complex<f64>) -> Complex<f64> {
             (z - self.a) * (z - self.b)
@@ -544,7 +544,7 @@ mod tests {
         root: Complex<f64>,
     }
 
-    impl HolomorphicFunction for DoubleRoot {
+    impl ComplexFunction for DoubleRoot {
         type Complex = Complex<f64>;
         fn value(&self, z: Complex<f64>) -> Complex<f64> {
             let dz = z - self.root;
@@ -592,7 +592,7 @@ mod tests {
         outside: Complex<f64>,
     }
 
-    impl HolomorphicFunction for OneInsideOneOutside {
+    impl ComplexFunction for OneInsideOneOutside {
         type Complex = Complex<f64>;
         fn value(&self, z: Complex<f64>) -> Complex<f64> {
             (z - self.inside) * (z - self.outside)

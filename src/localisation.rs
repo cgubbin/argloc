@@ -25,7 +25,7 @@ use quad_rs::{ComplexScalar, IntegrableFloat, IntegrationOutput, IntegratorConfi
 use quadtree_core::Rect;
 
 use crate::{
-    ArgumentError, ArgumentLeaf, HolomorphicFunction, SearchTarget, argument::compute_moment,
+    ArgumentError, ArgumentLeaf, ComplexFunction, SearchTarget, argument::compute_moment,
     oracle::rectangle_contour,
 };
 
@@ -75,7 +75,7 @@ pub fn localise_from_cells<F, C>(
     target: SearchTarget,
 ) -> Result<Vec<SingularPointEstimate<C>>, ArgumentError<C>>
 where
-    F: HolomorphicFunction<Complex = C>,
+    F: ComplexFunction<Complex = C>,
     C: ComplexField + Copy + IntegrationOutput<C, Float = C::RealField>,
     C::RealField: Float + FromPrimitive + IntegrableFloat + ComplexScalar<Complex = C>,
 {

@@ -20,7 +20,7 @@ use crate::{
     SearchTarget,
     argument::{ArgumentError, LogDerivativeError, compute_winding},
     cell::ArgumentCell,
-    function::HolomorphicFunction,
+    function::ComplexFunction,
 };
 
 use nalgebra::ComplexField;
@@ -118,7 +118,7 @@ pub(crate) fn rectangle_contour<T: ComplexScalar>(bounds: Rect<T>) -> Contour<T>
 
 impl<F, T> QuadOracle<T> for ArgumentOracle<F, T>
 where
-    F: HolomorphicFunction,
+    F: ComplexFunction,
     F::Complex: ComplexField<RealField = T> + Copy + IntegrationOutput<F::Complex, Float = T>,
     T: ComplexScalar<Complex = F::Complex> + Float + FromPrimitive + IntegrableFloat,
 {
@@ -166,7 +166,7 @@ mod tests {
 
     use crate::{
         argument::{ArgumentError, LogDerivativeError},
-        function::HolomorphicFunction,
+        function::ComplexFunction,
     };
 
     use approx::assert_relative_eq;
@@ -181,7 +181,7 @@ mod tests {
         root: Complex<f64>,
     }
 
-    impl HolomorphicFunction for Linear {
+    impl ComplexFunction for Linear {
         type Complex = Complex<f64>;
 
         fn value(&self, z: Self::Complex) -> Self::Complex {
@@ -249,7 +249,7 @@ mod tests {
             b: Complex<f64>,
         }
 
-        impl HolomorphicFunction for Quadratic {
+        impl ComplexFunction for Quadratic {
             type Complex = Complex<f64>;
 
             fn value(&self, z: Self::Complex) -> Self::Complex {

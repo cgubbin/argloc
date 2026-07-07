@@ -1,4 +1,4 @@
-//! Holomorphic function abstractions.
+//! Complex function abstractions.
 //!
 //! This module defines the mathematical interface required by the argument
 //! principle.
@@ -16,7 +16,7 @@
 //! improving both robustness and numerical accuracy of the contour integrals.
 //!
 
-/// A holomorphic function over the complex plane.
+/// A function over the complex plane.
 ///
 /// Implementations provide the complex function together with its first
 /// derivative. These are used to evaluate contour integrals of the logarithmic
@@ -32,7 +32,7 @@
 ///
 /// Functions are assumed to be analytic everywhere inside the search domain,
 /// except at isolated poles if these are intentionally being analysed.
-pub trait HolomorphicFunction {
+pub trait ComplexFunction {
     type Complex;
     /// Evaluate the function at `z`.
     fn value(&self, z: Self::Complex) -> Self::Complex;

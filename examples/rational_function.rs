@@ -1,11 +1,11 @@
-use argloc::{ArgumentConfig, HolomorphicFunction, find_poles, find_zeros};
+use argloc::{ArgumentConfig, ComplexFunction, find_poles, find_zeros};
 use num_complex::Complex;
 use quadtree_core::Rect;
 
 #[derive(Debug, Clone, Copy)]
 struct RationalFunction;
 
-impl HolomorphicFunction for RationalFunction {
+impl ComplexFunction for RationalFunction {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {

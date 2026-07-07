@@ -1,5 +1,5 @@
 use argloc::{
-    ArgumentOracle, HolomorphicFunction, IntegratorConfig, MaxWeightedScorePolicy, QuadTreeConfig,
+    ArgumentOracle, ComplexFunction, IntegratorConfig, MaxWeightedScorePolicy, QuadTreeConfig,
     Rect, SearchTarget, ShiftSplitOnBoundary, run_with_policy,
 };
 
@@ -10,7 +10,7 @@ struct Linear {
     root: Complex<f64>,
 }
 
-impl HolomorphicFunction for Linear {
+impl ComplexFunction for Linear {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Complex<f64>) -> Complex<f64> {

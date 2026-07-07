@@ -70,13 +70,13 @@
 //! # Basic usage
 //!
 //! ```no_run
-//! use argloc::{find_singularities, SearchTarget, ArgumentConfig, Rect, HolomorphicFunction};
+//! use argloc::{find_singularities, SearchTarget, ArgumentConfig, Rect, ComplexFunction};
 //! use num_complex::Complex;
 //!
 //! #[derive(Debug, Clone, Copy)]
 //! struct Quadratic;
 //!
-//! impl HolomorphicFunction for Quadratic {
+//! impl ComplexFunction for Quadratic {
 //!     type Complex = Complex<f64>;
 //!
 //!     fn value(&self, z: Self::Complex) -> Self::Complex {
@@ -108,7 +108,7 @@
 //!
 //! # Main components
 //!
-//! - [`HolomorphicFunction`] defines the user-supplied function and derivative.
+//! - [`ComplexFunction`] defines the user-supplied function and derivative.
 //! - [`ArgumentConfig`] controls quadtree refinement, integration tolerances,
 //!   singularity thresholds, and boundary recovery.
 //! - [`find_roots`] is the main public entrypoint.
@@ -149,7 +149,7 @@ mod subdivision;
 pub use argument::ArgumentError;
 pub use config::ArgumentConfig;
 pub use error::FindRootsError;
-pub use function::HolomorphicFunction;
+pub use function::ComplexFunction;
 pub use localisation::{SingularPointEstimate, SingularPointEstimateKind};
 pub use oracle::ArgumentOracle;
 pub use output::{ArgumentLeaf, ArgumentResult};
@@ -188,26 +188,41 @@ impl SearchTarget {
     }
 }
 
+/// Locate zeros of a holomorphic function.
+///
+/// This assumes that `function` has no poles in `domain`.
+///
+/// If poles are present, the argument-principle count may become negative and
+/// the solver will report an error rather than trying to interpret the result
+/// as a zero count.
 pub fn find_zeros<F, C, T>(
     function: F,
     domain: Rect<T>,
     config: ArgumentConfig<T>,
 ) -> Result<ArgumentResult<C>, FindRootsError<C>>
 where
-    F: HolomorphicFunction<Complex = C> + Clone,
+    F: ComplexFunction<Complex = C> + Clone,
     C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
     T: ComplexScalar<Complex = C> + Float + FromPrimitive + IntegrableFloat,
 {
     find_singularities(function, domain, SearchTarget::Zeros, config)
 }
 
+/// Locate poles of a meromorphic function.
+///
+/// This uses the Argument Principle with the sign convention reversed, so that
+/// poles contribute positive counts.
+///
+/// If zeros are also present in `domain`, they subtract from the pole count.
+/// In mixed zero/pole regions, use separate numerator/denominator functions
+/// when possible.
 pub fn find_poles<F, C, T>(
     function: F,
     domain: Rect<T>,
     config: ArgumentConfig<T>,
 ) -> Result<ArgumentResult<C>, FindRootsError<C>>
 where
-    F: HolomorphicFunction<Complex = C> + Clone,
+    F: ComplexFunction<Complex = C> + Clone,
     C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
     T: ComplexScalar<Complex = C> + Float + FromPrimitive + IntegrableFloat,
 {
@@ -221,7 +236,7 @@ pub fn find_singularities<F, C, T>(
     config: ArgumentConfig<T>,
 ) -> Result<ArgumentResult<C>, FindRootsError<C>>
 where
-    F: HolomorphicFunction<Complex = C> + Clone,
+    F: ComplexFunction<Complex = C> + Clone,
     C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
     T: ComplexScalar<Complex = C> + Float + FromPrimitive + IntegrableFloat,
 {

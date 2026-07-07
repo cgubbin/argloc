@@ -1,11 +1,11 @@
-use argloc::{ArgumentConfig, HolomorphicFunction, find_poles};
+use argloc::{ArgumentConfig, ComplexFunction, find_poles};
 use num_complex::Complex;
 use quadtree_core::Rect;
 
 #[derive(Debug, Clone, Copy)]
 struct DoublePole;
 
-impl HolomorphicFunction for DoublePole {
+impl ComplexFunction for DoublePole {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {

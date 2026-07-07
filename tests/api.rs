@@ -1,6 +1,6 @@
 use approx::assert_relative_eq;
 use argloc::{
-    ArgumentConfig, HolomorphicFunction, SearchTarget, SingularPointEstimateKind, find_poles,
+    ArgumentConfig, ComplexFunction, SearchTarget, SingularPointEstimateKind, find_poles,
     find_singularities, find_zeros,
 };
 use num_complex::Complex;
@@ -48,7 +48,7 @@ fn assert_root_near(roots: &[argloc::SingularPointEstimate<Complex<f64>>], expec
 #[derive(Debug, Clone, Copy)]
 struct Quadratic;
 
-impl HolomorphicFunction for Quadratic {
+impl ComplexFunction for Quadratic {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {
@@ -78,7 +78,7 @@ fn finds_two_real_roots_of_quadratic() {
 #[derive(Debug, Clone, Copy)]
 struct CubicUnity;
 
-impl HolomorphicFunction for CubicUnity {
+impl ComplexFunction for CubicUnity {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {
@@ -109,7 +109,7 @@ fn finds_roots_of_unity() {
 #[derive(Debug, Clone, Copy)]
 struct ShiftedCluster;
 
-impl HolomorphicFunction for ShiftedCluster {
+impl ComplexFunction for ShiftedCluster {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {
@@ -151,7 +151,7 @@ fn handles_clustered_roots_and_an_isolated_root() {
 #[derive(Debug, Clone, Copy)]
 struct DoubleRoot;
 
-impl HolomorphicFunction for DoubleRoot {
+impl ComplexFunction for DoubleRoot {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {
@@ -179,7 +179,7 @@ fn reports_multiplicity_for_repeated_root() {
 #[derive(Debug, Clone, Copy)]
 struct BoundaryRoot;
 
-impl HolomorphicFunction for BoundaryRoot {
+impl ComplexFunction for BoundaryRoot {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {
@@ -207,7 +207,7 @@ fn recovers_when_root_lies_on_uniform_split_line() {
 #[derive(Debug, Clone, Copy)]
 struct NoRoots;
 
-impl HolomorphicFunction for NoRoots {
+impl ComplexFunction for NoRoots {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {
@@ -237,25 +237,9 @@ fn returns_no_roots_when_region_contains_none() {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct ReciprocalQuadratic;
-
-impl HolomorphicFunction for ReciprocalQuadratic {
-    type Complex = Complex<f64>;
-
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        Complex::new(1.0, 0.0) / (z * z - Complex::new(5.0, 0.0))
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
-        let denom = z * z - Complex::new(5.0, 0.0);
-        -Complex::new(2.0, 0.0) * z / (denom * denom)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 struct DoublePole;
 
-impl HolomorphicFunction for DoublePole {
+impl ComplexFunction for DoublePole {
     type Complex = Complex<f64>;
 
     fn value(&self, z: Self::Complex) -> Self::Complex {

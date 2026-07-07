@@ -269,7 +269,7 @@ mod subdivision;
 
 pub use argument::ArgumentError;
 pub use config::ArgumentConfig;
-pub use error::FindRootsError;
+pub use error::FindSingularitiesError;
 pub use function::ComplexFunction;
 pub use localisation::{SingularPointEstimate, SingularPointEstimateKind};
 pub use oracle::ArgumentOracle;
@@ -317,7 +317,7 @@ pub fn find_zeros<F, C, T>(
     function: F,
     domain: Rect<T>,
     config: ArgumentConfig<T>,
-) -> Result<ArgumentResult<C>, FindRootsError<C>>
+) -> Result<ArgumentResult<C>, FindSingularitiesError<C>>
 where
     F: ComplexFunction<Complex = C> + Clone,
     C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
@@ -338,7 +338,7 @@ pub fn find_poles<F, C, T>(
     function: F,
     domain: Rect<T>,
     config: ArgumentConfig<T>,
-) -> Result<ArgumentResult<C>, FindRootsError<C>>
+) -> Result<ArgumentResult<C>, FindSingularitiesError<C>>
 where
     F: ComplexFunction<Complex = C> + Clone,
     C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
@@ -352,7 +352,7 @@ pub fn find_singularities<F, C, T>(
     domain: Rect<T>,
     search_target: SearchTarget,
     config: ArgumentConfig<T>,
-) -> Result<ArgumentResult<C>, FindRootsError<C>>
+) -> Result<ArgumentResult<C>, FindSingularitiesError<C>>
 where
     F: ComplexFunction<Complex = C> + Clone,
     C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,

@@ -4,7 +4,7 @@ use quadtree_core::{QuadTree, QuadTreeError, TrellisFloat};
 
 #[allow(clippy::type_complexity)]
 #[derive(thiserror::Error, Debug)]
-pub enum FindRootsError<C>
+pub enum FindSingularitiesError<C>
 where
     C: nalgebra::ComplexField,
     C::RealField: Float + TrellisFloat,

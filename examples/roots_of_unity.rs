@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Roots of z^3 - 1");
 
-    for root in &result.roots {
+    for root in &result.points {
         println!(
             "{:?}: z = {}, multiplicity = {}, enclosure = {}",
             root.kind, root.location, root.multiplicity, root.enclosure
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "total multiplicity: {}",
-        result.roots.iter().map(|r| r.multiplicity).sum::<usize>()
+        result.points.iter().map(|r| r.multiplicity).sum::<usize>()
     );
     println!("leaves: {}", result.leaves.len());
     println!("termination: {:?}", result.termination);

@@ -40,9 +40,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let result = find_singularities(Quadratic, domain, SearchTarget::Zeros, config)?;
 
-    println!("Found {} root estimates", result.roots.len());
+    println!("Found {} root estimates", result.points.len());
 
-    for root in &result.roots {
+    for root in &result.points {
         println!(
             "{:?}: z = {}, multiplicity = {}, enclosure = {}",
             root.kind, root.location, root.multiplicity, root.enclosure

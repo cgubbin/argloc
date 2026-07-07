@@ -67,12 +67,12 @@ fn finds_two_real_roots_of_quadratic() {
     let result = find_singularities(Quadratic, domain, SearchTarget::Zeros, config()).unwrap();
 
     assert_eq!(
-        result.roots.iter().map(|r| r.multiplicity).sum::<usize>(),
+        result.points.iter().map(|r| r.multiplicity).sum::<usize>(),
         2
     );
 
-    assert_root_near(&result.roots[..], Complex::new(-1.0, 0.0));
-    assert_root_near(&result.roots[..], Complex::new(1.0, 0.0));
+    assert_root_near(&result.points[..], Complex::new(-1.0, 0.0));
+    assert_root_near(&result.points[..], Complex::new(1.0, 0.0));
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -97,13 +97,16 @@ fn finds_roots_of_unity() {
     let result = find_singularities(CubicUnity, domain, SearchTarget::Zeros, config()).unwrap();
 
     assert_eq!(
-        result.roots.iter().map(|r| r.multiplicity).sum::<usize>(),
+        result.points.iter().map(|r| r.multiplicity).sum::<usize>(),
         3
     );
 
-    assert_root_near(&result.roots[..], Complex::new(1.0, 0.0));
-    assert_root_near(&result.roots[..], Complex::new(-0.5, 3.0_f64.sqrt() / 2.0));
-    assert_root_near(&result.roots[..], Complex::new(-0.5, -3.0_f64.sqrt() / 2.0));
+    assert_root_near(&result.points[..], Complex::new(1.0, 0.0));
+    assert_root_near(&result.points[..], Complex::new(-0.5, 3.0_f64.sqrt() / 2.0));
+    assert_root_near(
+        &result.points[..],
+        Complex::new(-0.5, -3.0_f64.sqrt() / 2.0),
+    );
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -134,14 +137,14 @@ fn handles_clustered_roots_and_an_isolated_root() {
     let result = find_singularities(ShiftedCluster, domain, SearchTarget::Zeros, config()).unwrap();
 
     assert_eq!(
-        result.roots.iter().map(|r| r.multiplicity).sum::<usize>(),
+        result.points.iter().map(|r| r.multiplicity).sum::<usize>(),
         3
     );
 
-    assert_root_near(&result.roots[..], Complex::new(-0.65, 0.40));
+    assert_root_near(&result.points[..], Complex::new(-0.65, 0.40));
 
     assert!(
-        result.roots.iter().any(|r| {
+        result.points.iter().any(|r| {
             r.multiplicity >= 1 && (r.location - Complex::new(0.215, 0.21)).norm() < 0.08
         }),
         "expected a localised estimate or cluster around the close pair"
@@ -170,10 +173,10 @@ fn reports_multiplicity_for_repeated_root() {
 
     let result = find_singularities(DoubleRoot, domain, SearchTarget::Zeros, config()).unwrap();
 
-    let total_multiplicity = result.roots.iter().map(|r| r.multiplicity).sum::<usize>();
+    let total_multiplicity = result.points.iter().map(|r| r.multiplicity).sum::<usize>();
 
     assert_eq!(total_multiplicity, 2);
-    assert_root_near(&result.roots[..], Complex::new(0.3, -0.2));
+    assert_root_near(&result.points[..], Complex::new(0.3, -0.2));
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -198,10 +201,10 @@ fn recovers_when_root_lies_on_uniform_split_line() {
     let result = find_singularities(BoundaryRoot, domain, SearchTarget::Zeros, config()).unwrap();
 
     assert_eq!(
-        result.roots.iter().map(|r| r.multiplicity).sum::<usize>(),
+        result.points.iter().map(|r| r.multiplicity).sum::<usize>(),
         1
     );
-    assert_root_near(&result.roots[..], Complex::new(0.5, 0.25));
+    assert_root_near(&result.points[..], Complex::new(0.5, 0.25));
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -225,7 +228,7 @@ fn returns_no_roots_when_region_contains_none() {
 
     let result = find_singularities(NoRoots, domain, SearchTarget::Zeros, config()).unwrap();
 
-    assert!(result.roots.is_empty());
+    assert!(result.points.is_empty());
     assert_eq!(
         result
             .leaves
@@ -260,8 +263,8 @@ fn reports_multiplicity_for_double_pole() {
     let result = find_poles(DoublePole, domain, config()).unwrap();
 
     assert_eq!(
-        result.roots.iter().map(|r| r.multiplicity).sum::<usize>(),
+        result.points.iter().map(|r| r.multiplicity).sum::<usize>(),
         2
     );
-    assert_root_near(&result.roots, Complex::new(0.25, -0.4));
+    assert_root_near(&result.points, Complex::new(0.25, -0.4));
 }

@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Boundary-recovery example");
     println!("The root lies on the first uniform split line x = 0.5.");
 
-    for root in &result.roots {
+    for root in &result.points {
         println!(
             "{:?}: z = {}, multiplicity = {}, enclosure = {}",
             root.kind, root.location, root.multiplicity, root.enclosure

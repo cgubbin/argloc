@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let poles = find_poles(RationalFunction, domain, config)?;
 
     println!("Zeros:");
-    for root in &zeros.roots {
+    for root in &zeros.points {
         println!(
             "  z = {}, multiplicity = {}",
             root.location, root.multiplicity
@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("Poles:");
-    for pole in &poles.roots {
+    for pole in &poles.points {
         println!(
             "  z = {}, multiplicity = {}",
             pole.location, pole.multiplicity

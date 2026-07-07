@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let result = find_poles(ReciprocalQuadratic, domain, config)?;
 
-    for pole in &result.roots {
+    for pole in &result.points {
         println!(
             "{:?}: z = {}, multiplicity = {}, enclosure = {}",
             pole.kind, pole.location, pole.multiplicity, pole.enclosure

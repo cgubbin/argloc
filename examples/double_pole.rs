@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let result = find_poles(DoublePole, domain, ArgumentConfig::new(1e-3))?;
 
-    for pole in &result.roots {
+    for pole in &result.points {
         println!(
             "{:?}: z = {}, multiplicity = {}, enclosure = {}",
             pole.kind, pole.location, pole.multiplicity, pole.enclosure

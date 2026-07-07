@@ -1,106 +1,224 @@
-//! # Argument Principle Root Finding
+//! # argloc
 //!
-//! `argument_principle` locates zeros of complex-valued holomorphic functions
-//! using contour integration and adaptive quadtree refinement.
+//! `argloc` locates zeros and poles of complex-valued functions using the
+//! Argument Principle, contour integration, and adaptive quadtree refinement.
 //!
-//! The crate applies the Argument Principle to rectangular regions of the
-//! complex plane. Each rectangle is surrounded by a contour, the logarithmic
-//! derivative is integrated around that contour, and the resulting winding
-//! number determines how many roots lie inside the region.
+//! The crate searches rectangular regions of the complex plane. Each region is
+//! surrounded by a contour, the logarithmic derivative is integrated around
+//! that contour, and the resulting winding number determines how many target
+//! singularities lie inside the region.
 //!
-//! Adaptive subdivision is provided by `quadtree_core`; contour integration is
+//! Adaptive refinement is provided by `quadtree_core`; contour integration is
 //! provided by `quad_rs`.
 //!
 //! # Mathematical basis
 //!
-//! Let `f(z)` be holomorphic on and inside a closed contour `Γ`, with no zeros
-//! on the contour. The Argument Principle states:
+//! For a meromorphic function `f(z)` and a closed contour `Γ` containing no
+//! zeros or poles on the contour, the Argument Principle states:
 //!
 //! ```text
 //!              1
-//! N = ---------------- ∮Γ f′(z) / f(z) dz
+//! N - P = ------------ ∮Γ f′(z) / f(z) dz
 //!          2πi
 //! ```
 //!
-//! where `N` is the number of enclosed zeros, counted with multiplicity.
+//! where:
 //!
-//! This crate evaluates that integral over rectangular cell boundaries. Cells
-//! with non-zero root count or uncertain winding are refined adaptively.
+//! - `N` is the number of zeros inside `Γ`;
+//! - `P` is the number of poles inside `Γ`;
+//! - both are counted with multiplicity.
+//!
+//! `argloc` applies this identity to rectangular cell boundaries. Cells with
+//! non-zero target count, uncertain winding, or unresolved numerical error are
+//! refined adaptively.
+//!
+//! # Zeros, poles, and API assumptions
+//!
+//! The Argument Principle computes a **signed** count, `N - P`. It does not
+//! separately report `N` and `P`.
+//!
+//! This is a fundamental limitation. A region containing
+//!
+//! ```text
+//! 3 zeros and 2 poles
+//! ```
+//!
+//! has the same signed argument count as a region containing
+//!
+//! ```text
+//! 1 zero and 0 poles.
+//! ```
+//!
+//! Therefore a single logarithmic-derivative contour integral cannot, in
+//! general, robustly separate zeros from poles in a mixed meromorphic function.
+//!
+//! ## `find_zeros`
+//!
+//! [`find_zeros`] locates zeros of a function in a search domain.
+//!
+//! It assumes that the supplied function has no poles in the search domain.
+//! This is the usual holomorphic root-finding case, for example:
+//!
+//! ```text
+//! f(z) = z^3 - 1
+//! ```
+//!
+//! If poles are present in the search region, the signed argument count may
+//! become negative. In that case the assumptions of [`find_zeros`] have been
+//! violated and the solver returns an error rather than silently producing an
+//! incorrect result.
+//!
+//! ## `find_poles`
+//!
+//! [`find_poles`] locates poles of a function in a search domain.
+//!
+//! Internally, this reverses the sign convention so that poles contribute
+//! positive counts. It is suitable for functions such as:
+//!
+//! ```text
+//! f(z) = 1 / (z^2 - 5)
+//! ```
+//!
+//! where the poles are the objects of interest.
+//!
+//! If zeros are also present in the same search region, they subtract from the
+//! pole count. The solver cannot generally distinguish this from a smaller
+//! number of poles using the argument-principle integral alone.
+//!
+//! ## Mixed rational functions
+//!
+//! For a rational function
+//!
+//! ```text
+//! f(z) = g(z) / h(z)
+//! ```
+//!
+//! zeros and poles should be handled separately when possible:
+//!
+//! - use [`find_zeros`] on `g` to locate zeros;
+//! - use [`find_zeros`] on `h`, or [`find_poles`] on `f`, to locate poles.
+//!
+//! This is the robust approach because it avoids asking the signed count
+//! `N - P` to recover two unknown quantities.
+//!
+//! A future lower-level API may expose raw signed argument-count regions for
+//! users who explicitly want to analyse `N - P` directly.
 //!
 //! # Localisation
 //!
-//! Once refinement has completed, root locations are estimated using the first
+//! After refinement, target locations are estimated using the first
 //! logarithmic-derivative moment:
 //!
 //! ```text
 //! S₁ = (1 / 2πi) ∮Γ z f′(z) / f(z) dz
 //! ```
 //!
-//! If the contour encloses roots `z₁, …, zₙ`, counted with multiplicity, then:
+//! For zero searches this gives the sum of enclosed zeros. For pole searches
+//! the sign convention is reversed, giving the sum of enclosed poles.
+//!
+//! If a contour encloses target points `z₁, …, zₙ`, counted with multiplicity,
+//! then:
 //!
 //! ```text
 //! S₁ = z₁ + ... + zₙ
 //! ```
 //!
-//! Therefore:
+//! and:
 //!
 //! ```text
-//! S₁ / N
+//! S₁ / n
 //! ```
 //!
-//! gives the multiplicity-weighted centroid of the enclosed roots.
+//! is the multiplicity-weighted centroid.
 //!
-//! For a single-root cell this is a root estimate. For a multi-root cell this
-//! is a cluster centroid, not an individual root location.
+//! For a single-target cell this is a point estimate. For a multi-target cell
+//! this is a cluster centroid, not an individual root or pole location.
 //!
 //! # Boundary singularities
 //!
-//! A root on a cell boundary makes the logarithmic derivative singular on the
-//! integration contour. This is common during adaptive subdivision because a
-//! root may lie exactly on a split line.
+//! A zero or pole on a cell boundary makes `f′(z) / f(z)` singular on the
+//! integration contour. This commonly occurs during adaptive subdivision when a
+//! target lies exactly on a split line.
 //!
-//! The crate treats this as a recoverable refinement event. The integrand
-//! reports a near-singular contour point, the oracle converts that raw complex
-//! coordinate into the quadtree coordinate system, and the subdivision policy
-//! retries using a shifted split.
+//! `argloc` treats this as a recoverable refinement event. The integrand reports
+//! a near-singular contour point, the oracle maps that point into the quadtree
+//! coordinate system, and the subdivision policy retries with a shifted split.
 //!
-//! This preserves the geometric partition while avoiding contour indentation,
-//! which can otherwise make root-count bookkeeping ambiguous.
+//! This preserves the rectangular partition and avoids contour indentation,
+//! whose inclusion/exclusion semantics can make root-count bookkeeping
+//! ambiguous.
 //!
 //! # Basic usage
 //!
 //! ```no_run
-//! use argloc::{find_singularities, SearchTarget, ArgumentConfig, Rect, ComplexFunction};
+//! use argloc::{find_zeros, ArgumentConfig, ComplexFunction};
 //! use num_complex::Complex;
+//! use quadtree_core::Rect;
 //!
 //! #[derive(Debug, Clone, Copy)]
-//! struct Quadratic;
+//! struct Cubic;
 //!
-//! impl ComplexFunction for Quadratic {
+//! impl ComplexFunction for Cubic {
 //!     type Complex = Complex<f64>;
 //!
 //!     fn value(&self, z: Self::Complex) -> Self::Complex {
-//!         z * z - Complex::new(1.0, 0.0)
+//!         z * z * z - Complex::new(1.0, 0.0)
 //!     }
 //!
 //!     fn derivative(&self, z: Self::Complex) -> Self::Complex {
-//!         Complex::new(2.0, 0.0) * z
+//!         Complex::new(3.0, 0.0) * z * z
 //!     }
 //! }
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let domain = Rect::new(-2.0, 2.0, -1.5, 1.5)?;
+//! let domain = Rect::new(-1.5, 1.5, -1.5, 1.5)?;
 //! let config = ArgumentConfig::new(1e-3);
 //!
-//! let result = find_singularities(Quadratic, domain, SearchTarget::Zeros, config)?;
+//! let result = find_zeros(Cubic, domain, config)?;
 //!
-//! for root in result.roots {
+//! for estimate in result.points {
 //!     println!(
 //!         "{:?}: z = {}, multiplicity = {}",
-//!         root.kind,
-//!         root.location,
-//!         root.multiplicity
+//!         estimate.kind,
+//!         estimate.location,
+//!         estimate.multiplicity
 //!     );
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Finding poles
+//!
+//! ```no_run
+//! use argloc::{find_poles, ArgumentConfig, ComplexFunction};
+//! use num_complex::Complex;
+//! use quadtree_core::Rect;
+//!
+//! #[derive(Debug, Clone, Copy)]
+//! struct ReciprocalQuadratic;
+//!
+//! impl ComplexFunction for ReciprocalQuadratic {
+//!     type Complex = Complex<f64>;
+//!
+//!     fn value(&self, z: Self::Complex) -> Self::Complex {
+//!         Complex::new(1.0, 0.0) / (z * z - Complex::new(5.0, 0.0))
+//!     }
+//!
+//!     fn derivative(&self, z: Self::Complex) -> Self::Complex {
+//!         let d = z * z - Complex::new(5.0, 0.0);
+//!         -Complex::new(2.0, 0.0) * z / (d * d)
+//!     }
+//! }
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let domain = Rect::new(-3.0, 3.0, -1.0, 1.0)?;
+//! let config = ArgumentConfig::new(1e-3);
+//!
+//! let result = find_poles(ReciprocalQuadratic, domain, config)?;
+//!
+//! for pole in result.points {
+//!     println!("pole at {}, multiplicity {}", pole.location, pole.multiplicity);
 //! }
 //! # Ok(())
 //! # }
@@ -108,12 +226,15 @@
 //!
 //! # Main components
 //!
-//! - [`ComplexFunction`] defines the user-supplied function and derivative.
+//! - [`ComplexFunction`] defines the user-supplied complex function and
+//!   derivative.
 //! - [`ArgumentConfig`] controls quadtree refinement, integration tolerances,
 //!   singularity thresholds, and boundary recovery.
-//! - [`find_roots`] is the main public entrypoint.
-//! - [`RootEstimate`] describes a root or root-cluster estimate.
-//! - [`FindRootsError`] is the public error type for the high-level API.
+//! - [`find_zeros`] locates zeros under the no-poles-in-domain assumption.
+//! - [`find_poles`] locates poles under the corresponding pole-search
+//!   convention.
+//! - [`SingularPointEstimate`] describes a target estimate or cluster centroid.
+//! - [`FindSingularitiesError`] is the public error type for the high-level API.
 //!
 //! # Design philosophy
 //!
@@ -122,20 +243,20 @@
 //! - contour integration computes winding numbers and moments;
 //! - the oracle turns rectangular cells into argument-principle data;
 //! - the quadtree engine handles adaptive refinement;
-//! - localisation interprets final cells as root estimates.
+//! - localisation interprets final cells as target estimates.
 //!
-//! This separation keeps the numerical complex-analysis code independent of
-//! the adaptive refinement engine, while still allowing domain-specific error
-//! recovery such as shifted subdivision near boundary singularities.
+//! This keeps the complex-analysis code independent of the adaptive refinement
+//! engine, while still allowing domain-specific recovery such as shifted
+//! subdivision near boundary singularities.
 //!
 //! # Limitations
 //!
-//! The current implementation focuses on holomorphic functions and zero
-//! finding. Meromorphic functions, pole counting, and contour-indentation
-//! semantics are intentionally not part of the first API.
+//! Mixed zero/pole regions cannot be robustly separated from `f′/f` alone.
+//! The high-level APIs therefore make explicit assumptions about the target
+//! singularity type.
 //!
-//! Multi-root cells are reported as cluster centroids. Individual reconstruction
-//! from higher contour moments may be added later.
+//! Multi-target cells are reported as centroids. Individual reconstruction from
+//! higher contour moments may be added later.
 mod argument;
 mod cell;
 mod config;
@@ -162,7 +283,6 @@ pub use quad_rs::IntegratorConfig;
 use nalgebra::ComplexField;
 use num_traits::{Float, FromPrimitive};
 use quad_rs::{ComplexScalar, IntegrableFloat, IntegrationOutput};
-
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq)]
 pub enum SearchTarget {
@@ -257,7 +377,7 @@ where
     )?;
 
     let leaves: Vec<ArgumentLeaf<T>> = result.iter().map(ArgumentLeaf::from_raw_leaf).collect();
-    let roots = crate::localisation::localise_from_cells(
+    let points = crate::localisation::localise_from_cells(
         &function,
         &leaves[..],
         config.integrator,
@@ -266,7 +386,7 @@ where
     )?;
 
     Ok(ArgumentResult {
-        roots,
+        points,
         leaves,
         summary: result.summary,
         termination: result.termination,

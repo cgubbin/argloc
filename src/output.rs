@@ -8,7 +8,7 @@ use quadtree_core::{QuadTreeResult, RawLeaf, RunSummary, Termination};
 
 #[derive(Debug)]
 pub struct ArgumentResult<C: ComplexField> {
-    pub roots: Vec<SingularPointEstimate<C>>,
+    pub points: Vec<SingularPointEstimate<C>>,
     pub leaves: Vec<ArgumentLeaf<C::RealField>>,
     pub summary: RunSummary<C::RealField>,
     pub termination: Termination,
@@ -43,7 +43,7 @@ where
         let leaves: Vec<_> = result.iter().map(ArgumentLeaf::from_raw_leaf).collect();
 
         Self {
-            roots: Vec::new(),
+            points: Vec::new(),
             leaves,
             summary: result.summary,
             termination: result.termination,

@@ -1,8 +1,4 @@
-use approx::assert_relative_eq;
-use argloc::{
-    ArgumentConfig, ComplexFunction, SearchTarget, SingularPointEstimateKind, find_poles,
-    find_singularities, find_zeros,
-};
+use argloc::{ArgumentConfig, ComplexFunction, SearchTarget, find_poles, find_singularities};
 use num_complex::Complex;
 use quad_rs::IntegratorConfig;
 use quadtree_core::{QuadTreeConfig, Rect};

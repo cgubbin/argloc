@@ -164,10 +164,7 @@ where
 mod tests {
     use super::*;
 
-    use crate::{
-        argument::{ArgumentError, LogDerivativeError},
-        function::ComplexFunction,
-    };
+    use crate::{argument::ArgumentError, function::ComplexFunction};
 
     use approx::assert_relative_eq;
     use num_complex::Complex;
@@ -338,7 +335,7 @@ mod tests {
     fn boundary_singularity_error_contains_raw_and_scaled_coordinates() {
         let raw_domain = Rect::new(10.0, 20.0, -5.0, 5.0).unwrap();
 
-        let scaler = Scaler2D::unit_square(raw_domain.clone()).unwrap();
+        let scaler = Scaler2D::unit_square(raw_domain).unwrap();
         let scaled_bounds = scaler.scaled_domain();
         let ctx = EvaluationContext { scaler: &scaler };
 
@@ -374,7 +371,7 @@ mod tests {
     fn oracle_evaluates_raw_contour_from_scaled_bounds() {
         let raw_domain = Rect::new(10.0, 20.0, -5.0, 5.0).unwrap();
 
-        let scaler = Scaler2D::unit_square(raw_domain.clone()).unwrap();
+        let scaler = Scaler2D::unit_square(raw_domain).unwrap();
         let ctx = EvaluationContext { scaler: &scaler };
 
         let raw_root = Complex::new(15.0, 0.0);

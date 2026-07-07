@@ -1,6 +1,6 @@
-use apm::{
+use argloc::{
     ArgumentOracle, HolomorphicFunction, IntegratorConfig, MaxWeightedScorePolicy, QuadTreeConfig,
-    Rect, ShiftSplitOnBoundary, run_with_policy,
+    Rect, SearchTarget, ShiftSplitOnBoundary, run_with_policy,
 };
 
 use num_complex::Complex;
@@ -29,7 +29,13 @@ fn root_on_uniform_split_line_recovers_with_shifted_subdivision() {
     // This root lies on the first vertical uniform split line x = 0.5.
     let root = Complex::new(0.5, 0.25);
 
-    let oracle = ArgumentOracle::new(Linear { root }, IntegratorConfig::default(), 1e-10, 1e-6);
+    let oracle = ArgumentOracle::new(
+        Linear { root },
+        IntegratorConfig::default(),
+        1e-10,
+        1e-6,
+        SearchTarget::Zeros,
+    );
 
     let config = QuadTreeConfig::new(1e-3)
         .with_max_iter(20)

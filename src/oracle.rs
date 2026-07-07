@@ -17,6 +17,7 @@
 //! root-containing leaves.
 
 use crate::{
+    SearchTarget,
     argument::{ArgumentError, LogDerivativeError, compute_winding},
     cell::ArgumentCell,
     function::HolomorphicFunction,
@@ -34,6 +35,7 @@ pub struct ArgumentOracle<F, T: ComplexScalar> {
     config: IntegratorConfig<T>,
     residual_tolerance: T,
     zero_tol: T,
+    search_target: SearchTarget,
 }
 
 impl<F, T> ArgumentOracle<F, T>
@@ -46,12 +48,14 @@ where
         config: IntegratorConfig<T>,
         residual_tolerance: T,
         zero_tol: T,
+        search_target: SearchTarget,
     ) -> Self {
         Self {
             function,
             config,
             residual_tolerance,
             zero_tol,
+            search_target,
         }
     }
 
@@ -128,10 +132,14 @@ where
     ) -> Result<Self::Data, Self::Error> {
         let contour = rectangle_contour(raw_bounds);
 
-        let winding = compute_winding(&self.function, contour, self.config.clone(), self.zero_tol)
-            .map_err(|err| {
-                self.map_argument_error(err, ctx.scaler.scaled_domain(), raw_bounds, ctx)
-            })?;
+        let winding = compute_winding(
+            &self.function,
+            contour,
+            self.config.clone(),
+            self.zero_tol,
+            self.search_target,
+        )
+        .map_err(|err| self.map_argument_error(err, ctx.scaler.scaled_domain(), raw_bounds, ctx))?;
 
         let score = if winding.residual <= self.residual_tolerance {
             self.score(
@@ -197,6 +205,7 @@ mod tests {
             config(),
             1e-10, // zero_tol
             1e-6,  // residual_tolerance
+            SearchTarget::Zeros,
         )
     }
 
@@ -262,6 +271,7 @@ mod tests {
             config(),
             1e-10,
             1e-6,
+            SearchTarget::Zeros,
         );
 
         let scaler = Scaler2D::unit_square(bounds).unwrap();
@@ -312,6 +322,7 @@ mod tests {
             config(),
             1e-10,
             0.0, // deliberately strict residual tolerance
+            SearchTarget::Zeros,
         );
 
         let scaler = Scaler2D::unit_square(bounds).unwrap();

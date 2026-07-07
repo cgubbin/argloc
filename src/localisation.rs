@@ -25,7 +25,7 @@ use quad_rs::{ComplexScalar, IntegrableFloat, IntegrationOutput, IntegratorConfi
 use quadtree_core::Rect;
 
 use crate::{
-    ArgumentError, ArgumentLeaf, HolomorphicFunction, argument::compute_moment,
+    ArgumentError, ArgumentLeaf, HolomorphicFunction, SearchTarget, argument::compute_moment,
     oracle::rectangle_contour,
 };
 
@@ -43,7 +43,7 @@ pub enum LocalisationError {
 
 /// A root or root-cluster estimate produced from contour moments.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct RootEstimate<C: ComplexField> {
+pub struct SingularPointEstimate<C: ComplexField> {
     /// Estimated location.
     ///
     /// For a single root this is the root estimate. For multiple roots this is
@@ -56,12 +56,14 @@ pub struct RootEstimate<C: ComplexField> {
     pub enclosure: Rect<C::RealField>,
 
     /// Whether this estimate represents one root or a cluster centroid.
-    pub kind: RootEstimateKind,
+    pub kind: SingularPointEstimateKind,
+
+    pub target: SearchTarget,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RootEstimateKind {
-    SingleRoot,
+pub enum SingularPointEstimateKind {
+    SinglePoint,
     ClusterCentroid,
 }
 
@@ -70,7 +72,8 @@ pub fn localise_from_cells<F, C>(
     leaves: &[ArgumentLeaf<C::RealField>],
     integrator_config: IntegratorConfig<C::RealField>,
     zero_tol: C::RealField,
-) -> Result<Vec<RootEstimate<C>>, ArgumentError<C>>
+    target: SearchTarget,
+) -> Result<Vec<SingularPointEstimate<C>>, ArgumentError<C>>
 where
     F: HolomorphicFunction<Complex = C>,
     C: ComplexField + Copy + IntegrationOutput<C, Float = C::RealField>,
@@ -85,8 +88,14 @@ where
 
         let contour = rectangle_contour(leaf.bounds);
 
-        let first_moment =
-            compute_moment(function, contour, integrator_config.clone(), 1, zero_tol)?;
+        let first_moment = compute_moment(
+            function,
+            contour,
+            integrator_config.clone(),
+            1,
+            zero_tol,
+            target,
+        )?;
 
         let n = leaf.data.root_count;
         let n_complex = C::from_real(C::RealField::from_isize(n).unwrap());
@@ -94,16 +103,17 @@ where
         let location = first_moment.moment / n_complex;
 
         let kind = if n == 1 {
-            RootEstimateKind::SingleRoot
+            SingularPointEstimateKind::SinglePoint
         } else {
-            RootEstimateKind::ClusterCentroid
+            SingularPointEstimateKind::ClusterCentroid
         };
 
-        roots.push(RootEstimate {
+        roots.push(SingularPointEstimate {
             location,
             multiplicity: n as usize,
             enclosure: leaf.bounds,
             kind,
+            target,
         });
     }
 

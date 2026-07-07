@@ -1,13 +1,13 @@
 [package]
-name = "apm"
+name = "argloc"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "Rust project template with library and binary"
+description = "adaptive localisation of complex zeros and poles using the argument principle and contour integration"
 license = "MIT"
 
 [lib]
-name = "apm"
+name = "argloc"
 path = "src/lib.rs"
 
 
@@ -15,7 +15,7 @@ path = "src/lib.rs"
 nalgebra = "0.33.3"
 num-traits = "0.2.19"
 quad-rs = "0.4.0"
-quadtree_core = {path = "../quadtree"}
+quadtree_core = "0.4.0"
 thiserror = "2.0.18"
 
 [dev-dependencies]

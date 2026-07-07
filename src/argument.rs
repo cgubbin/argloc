@@ -24,7 +24,7 @@ use quad_rs::{
 };
 use quadtree_core::{Rect, ScalerError};
 
-use crate::function::HolomorphicFunction;
+use crate::{SearchTarget, function::HolomorphicFunction};
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum ArgumentError<C: ComplexField> {
@@ -272,6 +272,7 @@ pub fn compute_argument_data<C, F>(
     contour: Contour<C::RealField>,
     config: IntegratorConfig<C::RealField>,
     zero_tol: C::RealField,
+    search_target: SearchTarget,
 ) -> Result<ArgumentData<C>, ArgumentError<C>>
 where
     C: ComplexField + IntegrationOutput<C, Float = C::RealField> + Copy,
@@ -279,8 +280,14 @@ where
         ComplexScalar<Complex = C> + IntegrableFloat + FromPrimitive + ToPrimitive,
     F: HolomorphicFunction<Complex = C>,
 {
-    let winding = compute_winding(function, contour.clone(), config.clone(), zero_tol)?;
-    let first_moment = compute_moment(function, contour, config, 1, zero_tol)?;
+    let winding = compute_winding(
+        function,
+        contour.clone(),
+        config.clone(),
+        zero_tol,
+        search_target,
+    )?;
+    let first_moment = compute_moment(function, contour, config, 1, zero_tol, search_target)?;
 
     Ok(ArgumentData {
         winding,
@@ -293,6 +300,7 @@ pub fn compute_winding<C, F>(
     contour: Contour<C::RealField>,
     config: IntegratorConfig<C::RealField>,
     zero_tol: C::RealField,
+    search_target: SearchTarget,
 ) -> Result<WindingData<C>, ArgumentError<C>>
 where
     C: ComplexField + IntegrationOutput<C, Float = C::RealField> + Copy,
@@ -302,7 +310,7 @@ where
 {
     let result = integrate_complex_fallible(LogDerivative { function, zero_tol }, contour, config)?;
 
-    let winding = normalise_argument_integral(result.integral);
+    let winding = normalise_argument_integral(result.integral) * C::from_real(search_target.sign());
 
     let nearest: C::RealField = winding.real().round();
     let root_count = nearest.to_isize().expect("nearest should be representable");
@@ -325,6 +333,7 @@ pub fn compute_moment<C, F>(
     config: IntegratorConfig<C::RealField>,
     power: usize,
     zero_tol: C::RealField,
+    search_target: SearchTarget,
 ) -> Result<MomentData<C>, ArgumentError<C>>
 where
     C: ComplexField + IntegrationOutput<C, Float = C::RealField> + Copy,
@@ -344,7 +353,7 @@ where
 
     Ok(MomentData {
         power,
-        moment: normalise_argument_integral(result.integral),
+        moment: normalise_argument_integral(result.integral) * C::from_real(search_target.sign()),
         integration_error: result.error,
     })
 }
@@ -412,7 +421,8 @@ mod tests {
             root: Complex::new(0.2, -0.1),
         };
 
-        let data = compute_winding(&f, circle(1.0), config(), ZERO_TOL).unwrap();
+        let data =
+            compute_winding(&f, circle(1.0), config(), ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         assert_eq!(data.root_count, 1);
         assert_relative_eq!(data.winding.re, 1.0, epsilon = TOL);
@@ -426,7 +436,8 @@ mod tests {
             root: Complex::new(2.0, 0.0),
         };
 
-        let data = compute_winding(&f, circle(1.0), config(), ZERO_TOL).unwrap();
+        let data =
+            compute_winding(&f, circle(1.0), config(), ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         assert_eq!(data.root_count, 0);
         assert_relative_eq!(data.winding.re, 0.0, epsilon = TOL);
@@ -440,7 +451,8 @@ mod tests {
 
         let f = Linear { root };
 
-        let moment = compute_moment(&f, circle(1.0), config(), 1, ZERO_TOL).unwrap();
+        let moment =
+            compute_moment(&f, circle(1.0), config(), 1, ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         assert_eq!(moment.power, 1);
         assert_relative_eq!(moment.moment.re, root.re, epsilon = TOL);
@@ -453,8 +465,10 @@ mod tests {
 
         let f = Linear { root };
 
-        let winding = compute_winding(&f, circle(1.0), config(), ZERO_TOL).unwrap();
-        let moment0 = compute_moment(&f, circle(1.0), config(), 0, ZERO_TOL).unwrap();
+        let winding =
+            compute_winding(&f, circle(1.0), config(), ZERO_TOL, SearchTarget::Zeros).unwrap();
+        let moment0 =
+            compute_moment(&f, circle(1.0), config(), 0, ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         assert_relative_eq!(moment0.moment.re, winding.winding.re, epsilon = TOL);
         assert_relative_eq!(moment0.moment.im, winding.winding.im, epsilon = TOL);
@@ -484,7 +498,8 @@ mod tests {
 
         let f = Quadratic { a, b };
 
-        let data = compute_winding(&f, circle(1.0), config(), ZERO_TOL).unwrap();
+        let data =
+            compute_winding(&f, circle(1.0), config(), ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         assert_eq!(data.root_count, 2);
         assert_relative_eq!(data.winding.re, 2.0, epsilon = TOL);
@@ -499,7 +514,8 @@ mod tests {
 
         let f = Quadratic { a, b };
 
-        let moment = compute_moment(&f, circle(1.0), config(), 1, ZERO_TOL).unwrap();
+        let moment =
+            compute_moment(&f, circle(1.0), config(), 1, ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         let expected = a + b;
 
@@ -514,7 +530,8 @@ mod tests {
 
         let f = Quadratic { a, b };
 
-        let moment = compute_moment(&f, circle(1.0), config(), 2, ZERO_TOL).unwrap();
+        let moment =
+            compute_moment(&f, circle(1.0), config(), 2, ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         let expected = a * a + b * b;
 
@@ -545,7 +562,8 @@ mod tests {
 
         let f = DoubleRoot { root };
 
-        let data = compute_winding(&f, circle(1.0), config(), ZERO_TOL).unwrap();
+        let data =
+            compute_winding(&f, circle(1.0), config(), ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         assert_eq!(data.root_count, 2);
         assert_relative_eq!(data.winding.re, 2.0, epsilon = TOL);
@@ -559,7 +577,8 @@ mod tests {
 
         let f = DoubleRoot { root };
 
-        let moment = compute_moment(&f, circle(1.0), config(), 1, ZERO_TOL).unwrap();
+        let moment =
+            compute_moment(&f, circle(1.0), config(), 1, ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         let expected = Complex::new(2.0, 0.0) * root;
 
@@ -591,7 +610,8 @@ mod tests {
 
         let f = OneInsideOneOutside { inside, outside };
 
-        let data = compute_winding(&f, circle(1.0), config(), ZERO_TOL).unwrap();
+        let data =
+            compute_winding(&f, circle(1.0), config(), ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         assert_eq!(data.root_count, 1);
         assert_relative_eq!(data.winding.re, 1.0, epsilon = TOL);
@@ -605,7 +625,8 @@ mod tests {
 
         let f = OneInsideOneOutside { inside, outside };
 
-        let moment = compute_moment(&f, circle(1.0), config(), 1, ZERO_TOL).unwrap();
+        let moment =
+            compute_moment(&f, circle(1.0), config(), 1, ZERO_TOL, SearchTarget::Zeros).unwrap();
 
         assert_relative_eq!(moment.moment.re, inside.re, epsilon = TOL);
         assert_relative_eq!(moment.moment.im, inside.im, epsilon = TOL);

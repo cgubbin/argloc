@@ -1,6 +1,6 @@
 // src/output.rs
 
-use crate::{cell::ArgumentCell, localisation::RootEstimate};
+use crate::{cell::ArgumentCell, localisation::SingularPointEstimate};
 
 use nalgebra::ComplexField;
 use num_traits::Float;
@@ -8,7 +8,7 @@ use quadtree_core::{QuadTreeResult, RawLeaf, RunSummary, Termination};
 
 #[derive(Debug)]
 pub struct ArgumentResult<C: ComplexField> {
-    pub roots: Vec<RootEstimate<C>>,
+    pub roots: Vec<SingularPointEstimate<C>>,
     pub leaves: Vec<ArgumentLeaf<C::RealField>>,
     pub summary: RunSummary<C::RealField>,
     pub termination: Termination,

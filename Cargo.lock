@@ -3,7 +3,16 @@
 version = 4
 
 [[package]]
-name = "apm"
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "argloc"
 version = "0.1.0"
 dependencies = [
  "approx",
@@ -13,15 +22,6 @@ dependencies = [
  "quad-rs",
  "quadtree_core",
  "thiserror",
-]
-
-[[package]]
-name = "approx"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
-dependencies = [
- "num-traits",
 ]
 
 [[package]]
@@ -191,7 +191,9 @@ dependencies = [
 
 [[package]]
 name = "quadtree_core"
-version = "0.3.0"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "103cf2185b526885f3d680c30e6d3e85afaafc3a762be2ba2c1c2f8615ae6786"
 dependencies = [
  "num-traits",
  "thiserror",

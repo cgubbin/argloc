@@ -2,6 +2,7 @@ use crate::{argument::ArgumentError, cell::ArgumentCell, subdivision::Subdivisio
 use num_traits::Float;
 use quadtree_core::{QuadTree, QuadTreeError, TrellisFloat};
 
+#[allow(clippy::type_complexity)]
 #[derive(thiserror::Error, Debug)]
 pub enum FindRootsError<C>
 where

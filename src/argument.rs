@@ -217,7 +217,7 @@ where
         );
 
         for _ in 0..self.power {
-            z_power = z_power * *z;
+            z_power *= *z;
 
             if !z_power.is_finite() {
                 return Err(LogDerivativeError::NonFiniteLogDerivative { z: *z });

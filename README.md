@@ -153,22 +153,25 @@ ambiguous.
 ## Basic usage
 
 ```rust
-use argloc::{find_zeros, ArgumentConfig, ComplexFunction};
+use argloc::{find_zeros, ArgumentConfig, ComplexFunction, FunctionBundle};
 use num_complex::Complex;
 use quadtree_core::Rect;
+use std::convert::Infallible;
 
 #[derive(Debug, Clone, Copy)]
 struct Cubic;
 
 impl ComplexFunction for Cubic {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        z * z * z - Complex::new(1.0, 0.0)
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
-        Complex::new(3.0, 0.0) * z * z
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+        Ok(
+            FunctionBundle::new(
+                z * z * z - Complex::new(1.0, 0.0),
+                Complex::new(3.0, 0.0) * z * z
+            )
+        )
     }
 }
 
@@ -190,23 +193,26 @@ for estimate in result.points {
 ## Finding poles
 
 ```rust
-use argloc::{find_poles, ArgumentConfig, ComplexFunction};
+use argloc::{find_poles, ArgumentConfig, ComplexFunction, FunctionBundle};
 use num_complex::Complex;
 use quadtree_core::Rect;
+use std::convert::Infallible;
 
 #[derive(Debug, Clone, Copy)]
 struct ReciprocalQuadratic;
 
 impl ComplexFunction for ReciprocalQuadratic {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        Complex::new(1.0, 0.0) / (z * z - Complex::new(5.0, 0.0))
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
         let d = z * z - Complex::new(5.0, 0.0);
-        -Complex::new(2.0, 0.0) * z / (d * d)
+        Ok(
+            FunctionBundle::new(
+                Complex::new(1.0, 0.0) / (z * z - Complex::new(5.0, 0.0)),
+                -Complex::new(2.0, 0.0) * z / (d * d)
+            )
+        )
     }
 }
 

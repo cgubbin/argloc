@@ -1,4 +1,6 @@
-use argloc::{ArgumentConfig, ComplexFunction, find_poles};
+use std::convert::Infallible;
+
+use argloc::{ArgumentConfig, ComplexFunction, FunctionBundle, find_poles};
 use num_complex::Complex;
 use quad_rs::IntegratorConfig;
 use quadtree_core::{QuadTreeConfig, Rect};
@@ -8,14 +10,17 @@ struct ReciprocalQuadratic;
 
 impl ComplexFunction for ReciprocalQuadratic {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        Complex::new(1.0, 0.0) / (z * z - Complex::new(5.0, 0.0))
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
+    fn bundle(
+        &self,
+        z: Self::Complex,
+    ) -> Result<argloc::FunctionBundle<Self::Complex>, Self::Error> {
         let denom = z * z - Complex::new(5.0, 0.0);
-        -Complex::new(2.0, 0.0) * z / (denom * denom)
+        Ok(FunctionBundle::new(
+            Complex::new(1.0, 0.0) / (z * z - Complex::new(5.0, 0.0)),
+            -Complex::new(2.0, 0.0) * z / (denom * denom),
+        ))
     }
 }
 

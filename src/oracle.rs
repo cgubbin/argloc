@@ -67,13 +67,13 @@ where
         residual.max(integration_error)
     }
 
-    fn map_argument_error<C>(
+    fn map_argument_error<C, E>(
         &self,
-        err: ArgumentError<C>,
+        err: ArgumentError<C, E>,
         scaled_bounds: Rect<T>,
         raw_bounds: Rect<T>,
         ctx: EvaluationContext<'_, T>,
-    ) -> ArgumentError<C>
+    ) -> ArgumentError<C, E>
     where
         C: ComplexField<RealField = T> + Copy,
         T: ComplexScalar<Complex = C>,
@@ -123,7 +123,7 @@ where
     T: ComplexScalar<Complex = F::Complex> + Float + FromPrimitive + IntegrableFloat,
 {
     type Data = ArgumentCell<T>;
-    type Error = ArgumentError<F::Complex>;
+    type Error = ArgumentError<F::Complex, F::Error>;
 
     fn evaluate(
         &mut self,
@@ -162,9 +162,14 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::convert::Infallible;
+
     use super::*;
 
-    use crate::{argument::ArgumentError, function::ComplexFunction};
+    use crate::{
+        argument::ArgumentError,
+        function::{ComplexFunction, FunctionBundle},
+    };
 
     use approx::assert_relative_eq;
     use num_complex::Complex;
@@ -180,13 +185,10 @@ mod tests {
 
     impl ComplexFunction for Linear {
         type Complex = Complex<f64>;
+        type Error = Infallible;
 
-        fn value(&self, z: Self::Complex) -> Self::Complex {
-            z - self.root
-        }
-
-        fn derivative(&self, _z: Self::Complex) -> Self::Complex {
-            Complex::new(1.0, 0.0)
+        fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+            Ok(FunctionBundle::new(z - self.root, Complex::new(1.0, 0.0)))
         }
     }
 
@@ -248,13 +250,16 @@ mod tests {
 
         impl ComplexFunction for Quadratic {
             type Complex = Complex<f64>;
+            type Error = Infallible;
 
-            fn value(&self, z: Self::Complex) -> Self::Complex {
-                (z - self.a) * (z - self.b)
-            }
-
-            fn derivative(&self, z: Self::Complex) -> Self::Complex {
-                (z - self.a) + (z - self.b)
+            fn bundle(
+                &self,
+                z: Self::Complex,
+            ) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+                Ok(FunctionBundle::new(
+                    (z - self.a) * (z - self.b),
+                    (z - self.a) + (z - self.b),
+                ))
             }
         }
 

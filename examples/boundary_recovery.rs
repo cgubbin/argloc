@@ -1,4 +1,6 @@
-use argloc::{ArgumentConfig, ComplexFunction, find_singularities};
+use std::convert::Infallible;
+
+use argloc::{ArgumentConfig, ComplexFunction, FunctionBundle, find_singularities};
 use num_complex::Complex;
 use quad_rs::IntegratorConfig;
 use quadtree_core::{QuadTreeConfig, Rect};
@@ -8,13 +10,16 @@ struct BoundaryRoot;
 
 impl ComplexFunction for BoundaryRoot {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        z - Complex::new(0.5, 0.25)
-    }
-
-    fn derivative(&self, _z: Self::Complex) -> Self::Complex {
-        Complex::new(1.0, 0.0)
+    fn bundle(
+        &self,
+        z: Self::Complex,
+    ) -> Result<argloc::FunctionBundle<Self::Complex>, Self::Error> {
+        Ok(FunctionBundle::new(
+            z - Complex::new(0.5, 0.25),
+            Complex::new(1.0, 0.0),
+        ))
     }
 }
 

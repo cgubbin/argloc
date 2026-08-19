@@ -1,4 +1,6 @@
-use argloc::{ArgumentConfig, ComplexFunction, find_poles};
+use std::convert::Infallible;
+
+use argloc::{ArgumentConfig, ComplexFunction, FunctionBundle, find_poles};
 use num_complex::Complex;
 use quadtree_core::Rect;
 
@@ -7,15 +9,17 @@ struct DoublePole;
 
 impl ComplexFunction for DoublePole {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
+    fn bundle(
+        &self,
+        z: Self::Complex,
+    ) -> Result<argloc::FunctionBundle<Self::Complex>, Self::Error> {
         let dz = z - Complex::new(0.25, -0.4);
-        Complex::new(1.0, 0.0) / (dz * dz)
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
-        let dz = z - Complex::new(0.25, -0.4);
-        -Complex::new(2.0, 0.0) / (dz * dz * dz)
+        Ok(FunctionBundle::new(
+            Complex::new(1.0, 0.0) / (dz * dz),
+            -Complex::new(2.0, 0.0) / (dz * dz * dz),
+        ))
     }
 }
 

@@ -1,4 +1,8 @@
-use argloc::{ArgumentConfig, ComplexFunction, SearchTarget, find_poles, find_singularities};
+use std::convert::Infallible;
+
+use argloc::{
+    ArgumentConfig, ComplexFunction, FunctionBundle, SearchTarget, find_poles, find_singularities,
+};
 use num_complex::Complex;
 use quad_rs::IntegratorConfig;
 use quadtree_core::{QuadTreeConfig, Rect};
@@ -46,13 +50,13 @@ struct Quadratic;
 
 impl ComplexFunction for Quadratic {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        z * z - Complex::new(1.0, 0.0)
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
-        Complex::new(2.0, 0.0) * z
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+        Ok(FunctionBundle::new(
+            z * z - Complex::new(1.0, 0.0),
+            Complex::new(2.0, 0.0) * z,
+        ))
     }
 }
 
@@ -76,13 +80,13 @@ struct CubicUnity;
 
 impl ComplexFunction for CubicUnity {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        z * z * z - Complex::new(1.0, 0.0)
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
-        Complex::new(3.0, 0.0) * z * z
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+        Ok(FunctionBundle::new(
+            z * z * z - Complex::new(1.0, 0.0),
+            Complex::new(3.0, 0.0) * z * z,
+        ))
     }
 }
 
@@ -110,19 +114,18 @@ struct ShiftedCluster;
 
 impl ComplexFunction for ShiftedCluster {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        (z - Complex::new(0.20, 0.20))
-            * (z - Complex::new(0.23, 0.22))
-            * (z - Complex::new(-0.65, 0.40))
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
         let a = Complex::new(0.20, 0.20);
         let b = Complex::new(0.23, 0.22);
         let c = Complex::new(-0.65, 0.40);
-
-        (z - b) * (z - c) + (z - a) * (z - c) + (z - a) * (z - b)
+        Ok(FunctionBundle::new(
+            (z - Complex::new(0.20, 0.20))
+                * (z - Complex::new(0.23, 0.22))
+                * (z - Complex::new(-0.65, 0.40)),
+            (z - b) * (z - c) + (z - a) * (z - c) + (z - a) * (z - b),
+        ))
     }
 }
 
@@ -152,14 +155,14 @@ struct DoubleRoot;
 
 impl ComplexFunction for DoubleRoot {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
         let dz = z - Complex::new(0.3, -0.2);
-        dz * dz
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
-        Complex::new(2.0, 0.0) * (z - Complex::new(0.3, -0.2))
+        Ok(FunctionBundle::new(
+            dz * dz,
+            Complex::new(2.0, 0.0) * (z - Complex::new(0.3, -0.2)),
+        ))
     }
 }
 
@@ -180,13 +183,13 @@ struct BoundaryRoot;
 
 impl ComplexFunction for BoundaryRoot {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        z - Complex::new(0.5, 0.25)
-    }
-
-    fn derivative(&self, _z: Self::Complex) -> Self::Complex {
-        Complex::new(1.0, 0.0)
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+        Ok(FunctionBundle::new(
+            z - Complex::new(0.5, 0.25),
+            Complex::new(1.0, 0.0),
+        ))
     }
 }
 
@@ -208,13 +211,13 @@ struct NoRoots;
 
 impl ComplexFunction for NoRoots {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        z * z + Complex::new(4.0, 0.0)
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
-        Complex::new(2.0, 0.0) * z
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+        Ok(FunctionBundle::new(
+            z * z + Complex::new(4.0, 0.0),
+            Complex::new(2.0, 0.0) * z,
+        ))
     }
 }
 
@@ -240,15 +243,14 @@ struct DoublePole;
 
 impl ComplexFunction for DoublePole {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
         let dz = z - Complex::new(0.25, -0.4);
-        Complex::new(1.0, 0.0) / (dz * dz)
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
-        let dz = z - Complex::new(0.25, -0.4);
-        -Complex::new(2.0, 0.0) / (dz * dz * dz)
+        Ok(FunctionBundle::new(
+            Complex::new(1.0, 0.0) / (dz * dz),
+            -Complex::new(2.0, 0.0) / (dz * dz * dz),
+        ))
     }
 }
 

@@ -1,6 +1,8 @@
+use std::convert::Infallible;
+
 use argloc::{
-    ArgumentOracle, ComplexFunction, IntegratorConfig, MaxWeightedScorePolicy, QuadTreeConfig,
-    Rect, SearchTarget, ShiftSplitOnBoundary, run_with_policy,
+    ArgumentOracle, ComplexFunction, FunctionBundle, IntegratorConfig, MaxWeightedScorePolicy,
+    QuadTreeConfig, Rect, SearchTarget, ShiftSplitOnBoundary, run_with_policy,
 };
 
 use num_complex::Complex;
@@ -12,13 +14,10 @@ struct Linear {
 
 impl ComplexFunction for Linear {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Complex<f64>) -> Complex<f64> {
-        z - self.root
-    }
-
-    fn derivative(&self, _z: Complex<f64>) -> Complex<f64> {
-        Complex::new(1.0, 0.0)
+    fn bundle(&self, z: Complex<f64>) -> Result<FunctionBundle<Complex<f64>>, Self::Error> {
+        Ok(FunctionBundle::new(z - self.root, Complex::new(1.0, 0.0)))
     }
 }
 

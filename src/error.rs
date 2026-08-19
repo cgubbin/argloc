@@ -4,7 +4,7 @@ use quadtree_core::{QuadTree, QuadTreeError, TrellisFloat};
 
 #[allow(clippy::type_complexity)]
 #[derive(thiserror::Error, Debug)]
-pub enum FindSingularitiesError<C>
+pub enum FindSingularitiesError<C, E>
 where
     C: nalgebra::ComplexField,
     C::RealField: Float + TrellisFloat,
@@ -16,10 +16,10 @@ where
             QuadTree<C::RealField, ArgumentCell<C::RealField>>,
             C::RealField,
             SubdivisionError<C::RealField>,
-            ArgumentError<C>,
+            ArgumentError<C, E>,
         >,
     ),
 
     #[error("root localisation failed: {0}")]
-    Localisation(#[from] ArgumentError<C>),
+    Localisation(#[from] ArgumentError<C, E>),
 }

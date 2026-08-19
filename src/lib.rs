@@ -151,22 +151,25 @@
 //! # Basic usage
 //!
 //! ```no_run
-//! use argloc::{find_zeros, ArgumentConfig, ComplexFunction};
+//! use argloc::{find_zeros, ArgumentConfig, ComplexFunction, FunctionBundle};
 //! use num_complex::Complex;
 //! use quadtree_core::Rect;
+//! use std::convert::Infallible;
 //!
 //! #[derive(Debug, Clone, Copy)]
 //! struct Cubic;
 //!
 //! impl ComplexFunction for Cubic {
 //!     type Complex = Complex<f64>;
+//!     type Error = Infallible;
 //!
-//!     fn value(&self, z: Self::Complex) -> Self::Complex {
-//!         z * z * z - Complex::new(1.0, 0.0)
-//!     }
-//!
-//!     fn derivative(&self, z: Self::Complex) -> Self::Complex {
-//!         Complex::new(3.0, 0.0) * z * z
+//!     fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+//!         Ok(
+//!             FunctionBundle::new(
+//!                 z * z * z - Complex::new(1.0, 0.0),
+//!                 Complex::new(3.0, 0.0) * z * z
+//!             )
+//!         )
 //!     }
 //! }
 //!
@@ -191,23 +194,26 @@
 //! # Finding poles
 //!
 //! ```no_run
-//! use argloc::{find_poles, ArgumentConfig, ComplexFunction};
+//! use argloc::{find_poles, ArgumentConfig, ComplexFunction, FunctionBundle};
 //! use num_complex::Complex;
 //! use quadtree_core::Rect;
+//! use std::convert::Infallible;
 //!
 //! #[derive(Debug, Clone, Copy)]
 //! struct ReciprocalQuadratic;
 //!
 //! impl ComplexFunction for ReciprocalQuadratic {
 //!     type Complex = Complex<f64>;
+//!     type Error = Infallible;
 //!
-//!     fn value(&self, z: Self::Complex) -> Self::Complex {
-//!         Complex::new(1.0, 0.0) / (z * z - Complex::new(5.0, 0.0))
-//!     }
-//!
-//!     fn derivative(&self, z: Self::Complex) -> Self::Complex {
+//!     fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
 //!         let d = z * z - Complex::new(5.0, 0.0);
-//!         -Complex::new(2.0, 0.0) * z / (d * d)
+//!         Ok(
+//!             FunctionBundle::new(
+//!                 Complex::new(1.0, 0.0) / (z * z - Complex::new(5.0, 0.0)),
+//!                 -Complex::new(2.0, 0.0) * z / (d * d)
+//!             )
+//!         )
 //!     }
 //! }
 //!
@@ -270,13 +276,15 @@ mod subdivision;
 pub use argument::ArgumentError;
 pub use config::ArgumentConfig;
 pub use error::FindSingularitiesError;
-pub use function::ComplexFunction;
+pub use function::{ComplexFunction, FunctionBundle};
 pub use localisation::{SingularPointEstimate, SingularPointEstimateKind};
 pub use oracle::ArgumentOracle;
 pub use output::{ArgumentLeaf, ArgumentResult};
 pub use subdivision::ShiftSplitOnBoundary;
 
-pub use quadtree_core::{MaxWeightedScorePolicy, QuadTreeConfig, Rect, run_with_policy};
+pub use quadtree_core::{
+    MaxWeightedScorePolicy, QuadTreeConfig, Rect, ScalerError, run_with_policy,
+};
 
 pub use quad_rs::IntegratorConfig;
 
@@ -317,7 +325,7 @@ pub fn find_zeros<F, C, T>(
     function: F,
     domain: Rect<T>,
     config: ArgumentConfig<T>,
-) -> Result<ArgumentResult<C>, FindSingularitiesError<C>>
+) -> Result<ArgumentResult<C>, FindSingularitiesError<C, F::Error>>
 where
     F: ComplexFunction<Complex = C> + Clone,
     C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
@@ -338,7 +346,7 @@ pub fn find_poles<F, C, T>(
     function: F,
     domain: Rect<T>,
     config: ArgumentConfig<T>,
-) -> Result<ArgumentResult<C>, FindSingularitiesError<C>>
+) -> Result<ArgumentResult<C>, FindSingularitiesError<C, F::Error>>
 where
     F: ComplexFunction<Complex = C> + Clone,
     C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
@@ -352,7 +360,7 @@ pub fn find_singularities<F, C, T>(
     domain: Rect<T>,
     search_target: SearchTarget,
     config: ArgumentConfig<T>,
-) -> Result<ArgumentResult<C>, FindSingularitiesError<C>>
+) -> Result<ArgumentResult<C>, FindSingularitiesError<C, F::Error>>
 where
     F: ComplexFunction<Complex = C> + Clone,
     C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,

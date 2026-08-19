@@ -1,4 +1,6 @@
-use argloc::{ArgumentConfig, ComplexFunction, SearchTarget, find_singularities};
+use std::convert::Infallible;
+
+use argloc::{ArgumentConfig, ComplexFunction, FunctionBundle, SearchTarget, find_singularities};
 use num_complex::Complex;
 use quad_rs::IntegratorConfig;
 use quadtree_core::{QuadTreeConfig, Rect};
@@ -8,13 +10,16 @@ struct Quadratic;
 
 impl ComplexFunction for Quadratic {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
-        z * z - Complex::new(1.0, 0.0)
-    }
-
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
-        Complex::new(2.0, 0.0) * z
+    fn bundle(
+        &self,
+        z: Self::Complex,
+    ) -> Result<argloc::FunctionBundle<Self::Complex>, Self::Error> {
+        Ok(FunctionBundle::new(
+            z * z - Complex::new(1.0, 0.0),
+            Complex::new(2.0, 0.0) * z,
+        ))
     }
 }
 

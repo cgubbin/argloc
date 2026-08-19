@@ -27,9 +27,9 @@ use quadtree_core::{Rect, ScalerError};
 use crate::{SearchTarget, function::ComplexFunction};
 
 #[derive(thiserror::Error, Debug, Clone)]
-pub enum ArgumentError<C: ComplexField> {
+pub enum ArgumentError<C: ComplexField, E> {
     #[error("error in integrand evaluation: {0}")]
-    IntegrandEvaluation(#[from] LogDerivativeError<C>),
+    IntegrandEvaluation(#[from] LogDerivativeError<C, E>),
 
     #[error("contour integration failed: {0}")]
     Integration(MinimalIntegratorError<C>),
@@ -46,12 +46,14 @@ pub enum ArgumentError<C: ComplexField> {
         scaled_z: C,
         raw_bounds: Rect<C::RealField>,
         scaled_bounds: Rect<C::RealField>,
-        source: LogDerivativeError<C>,
+        source: LogDerivativeError<C, E>,
     },
 }
 
-impl<C: ComplexField> From<IntegratorError<C, LogDerivativeError<C>>> for ArgumentError<C> {
-    fn from(value: IntegratorError<C, LogDerivativeError<C>>) -> Self {
+impl<C: ComplexField, E> From<IntegratorError<C, LogDerivativeError<C, E>>>
+    for ArgumentError<C, E>
+{
+    fn from(value: IntegratorError<C, LogDerivativeError<C, E>>) -> Self {
         match value {
             IntegratorError::User(error) => Self::IntegrandEvaluation(error),
             IntegratorError::ExceededMaxFunctionEvaluations => {
@@ -97,7 +99,7 @@ pub enum MinimalIntegratorError<T> {
 }
 
 #[derive(thiserror::Error, Debug, Clone)]
-pub enum LogDerivativeError<C: ComplexField> {
+pub enum LogDerivativeError<C: ComplexField, E> {
     #[error("function value was non-finite at {z:?}")]
     NonFiniteFunctionValue { z: C },
 
@@ -109,6 +111,9 @@ pub enum LogDerivativeError<C: ComplexField> {
 
     #[error("logarithmic derivative was non-finite at {z:?}")]
     NonFiniteLogDerivative { z: C },
+
+    #[error("error in function evaluation: {0:?}")]
+    Evaluation(#[from] E),
 }
 
 /// Quantities computed from the Argument Principle.
@@ -166,7 +171,7 @@ where
     type Float = <F::Complex as ComplexField>::RealField;
     type Input = F::Complex;
     type Output = F::Complex;
-    type Error = LogDerivativeError<F::Complex>;
+    type Error = LogDerivativeError<F::Complex, F::Error>;
 
     fn fallible_integrand(&self, z: &Self::Input) -> Result<Self::Output, Self::Error> {
         checked_log_derivative(self.function, *z, self.zero_tol)
@@ -206,7 +211,7 @@ where
     type Float = <F::Complex as ComplexField>::RealField;
     type Input = F::Complex;
     type Output = F::Complex;
-    type Error = LogDerivativeError<F::Complex>;
+    type Error = LogDerivativeError<F::Complex, F::Error>;
 
     fn fallible_integrand(&self, z: &Self::Input) -> Result<Self::Output, Self::Error> {
         let log_derivative = checked_log_derivative(self.function, *z, self.zero_tol)?;
@@ -238,36 +243,34 @@ fn checked_log_derivative<F>(
     function: &F,
     z: F::Complex,
     zero_tol: <F::Complex as ComplexField>::RealField,
-) -> Result<F::Complex, LogDerivativeError<F::Complex>>
+) -> Result<F::Complex, LogDerivativeError<F::Complex, F::Error>>
 where
     F: ComplexFunction,
     F::Complex: ComplexField + Copy,
 {
-    let fz = function.value(z);
+    let bundle = function.bundle(z)?;
 
-    if !fz.is_finite() {
+    if !bundle.value().is_finite() {
         return Err(LogDerivativeError::NonFiniteFunctionValue { z });
     }
 
-    let dfz = function.derivative(z);
-
-    if !dfz.is_finite() {
+    if !bundle.derivative().is_finite() {
         return Err(LogDerivativeError::NonFiniteDerivativeValue { z });
     }
 
-    let norm = fz.modulus();
+    let norm = bundle.value().modulus();
 
     if norm <= zero_tol {
         return Err(LogDerivativeError::NearSingularContour { z, norm });
     }
 
-    let value = dfz / fz;
+    let ratio = *bundle.derivative() / *bundle.value();
 
-    if !value.is_finite() {
+    if !ratio.is_finite() {
         return Err(LogDerivativeError::NonFiniteLogDerivative { z });
     }
 
-    Ok(value)
+    Ok(ratio)
 }
 
 #[allow(dead_code)]
@@ -277,7 +280,7 @@ pub fn compute_argument_data<C, F>(
     config: IntegratorConfig<C::RealField>,
     zero_tol: C::RealField,
     search_target: SearchTarget,
-) -> Result<ArgumentData<C>, ArgumentError<C>>
+) -> Result<ArgumentData<C>, ArgumentError<C, F::Error>>
 where
     C: ComplexField + IntegrationOutput<C, Float = C::RealField> + Copy,
     <C as ComplexField>::RealField:
@@ -305,7 +308,7 @@ pub fn compute_winding<C, F>(
     config: IntegratorConfig<C::RealField>,
     zero_tol: C::RealField,
     search_target: SearchTarget,
-) -> Result<WindingData<C>, ArgumentError<C>>
+) -> Result<WindingData<C>, ArgumentError<C, F::Error>>
 where
     C: ComplexField + IntegrationOutput<C, Float = C::RealField> + Copy,
     <C as ComplexField>::RealField:
@@ -338,7 +341,7 @@ pub fn compute_moment<C, F>(
     power: usize,
     zero_tol: C::RealField,
     search_target: SearchTarget,
-) -> Result<MomentData<C>, ArgumentError<C>>
+) -> Result<MomentData<C>, ArgumentError<C, F::Error>>
 where
     C: ComplexField + IntegrationOutput<C, Float = C::RealField> + Copy,
     <C as ComplexField>::RealField:
@@ -377,8 +380,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::convert::Infallible;
+
     use super::*;
-    use crate::function::ComplexFunction;
+    use crate::function::{ComplexFunction, FunctionBundle};
 
     use approx::assert_relative_eq;
     use num_complex::Complex;
@@ -409,13 +414,10 @@ mod tests {
 
     impl ComplexFunction for Linear {
         type Complex = Complex<f64>;
+        type Error = Infallible;
 
-        fn value(&self, z: Complex<f64>) -> Complex<f64> {
-            z - self.root
-        }
-
-        fn derivative(&self, _z: Complex<f64>) -> Complex<f64> {
-            Complex::new(1.0, 0.0)
+        fn bundle(&self, z: Complex<f64>) -> Result<FunctionBundle<Complex<f64>>, Self::Error> {
+            Ok(FunctionBundle::new(z - self.root, Complex::new(1.0, 0.0)))
         }
     }
 
@@ -486,12 +488,12 @@ mod tests {
 
     impl ComplexFunction for Quadratic {
         type Complex = Complex<f64>;
-        fn value(&self, z: Complex<f64>) -> Complex<f64> {
-            (z - self.a) * (z - self.b)
-        }
-
-        fn derivative(&self, z: Complex<f64>) -> Complex<f64> {
-            (z - self.a) + (z - self.b)
+        type Error = Infallible;
+        fn bundle(&self, z: Complex<f64>) -> Result<FunctionBundle<Complex<f64>>, Self::Error> {
+            Ok(FunctionBundle::new(
+                (z - self.a) * (z - self.b),
+                (z - self.a) + (z - self.b),
+            ))
         }
     }
 
@@ -550,13 +552,14 @@ mod tests {
 
     impl ComplexFunction for DoubleRoot {
         type Complex = Complex<f64>;
-        fn value(&self, z: Complex<f64>) -> Complex<f64> {
-            let dz = z - self.root;
-            dz * dz
-        }
+        type Error = Infallible;
 
-        fn derivative(&self, z: Complex<f64>) -> Complex<f64> {
-            Complex::new(2.0, 0.0) * (z - self.root)
+        fn bundle(&self, z: Complex<f64>) -> Result<FunctionBundle<Complex<f64>>, Self::Error> {
+            let dz = z - self.root;
+            Ok(FunctionBundle::new(
+                dz * dz,
+                Complex::new(2.0, 0.0) * (z - self.root),
+            ))
         }
     }
 
@@ -598,12 +601,12 @@ mod tests {
 
     impl ComplexFunction for OneInsideOneOutside {
         type Complex = Complex<f64>;
-        fn value(&self, z: Complex<f64>) -> Complex<f64> {
-            (z - self.inside) * (z - self.outside)
-        }
-
-        fn derivative(&self, z: Complex<f64>) -> Complex<f64> {
-            (z - self.inside) + (z - self.outside)
+        type Error = Infallible;
+        fn bundle(&self, z: Complex<f64>) -> Result<FunctionBundle<Complex<f64>>, Self::Error> {
+            Ok(FunctionBundle::new(
+                (z - self.inside) * (z - self.outside),
+                (z - self.inside) + (z - self.outside),
+            ))
         }
     }
 

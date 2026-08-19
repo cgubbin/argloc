@@ -18,7 +18,7 @@ pub enum SubdivisionError<T> {
 
 use num_traits::Float;
 
-impl<C> SubdivisionPolicy<C::RealField, ArgumentCell<C::RealField>, ArgumentError<C>>
+impl<C, E> SubdivisionPolicy<C::RealField, ArgumentCell<C::RealField>, ArgumentError<C, E>>
     for ShiftSplitOnBoundary<C::RealField>
 where
     C: ComplexField + Copy,
@@ -37,7 +37,7 @@ where
     fn retry_after_failure(
         &self,
         parent: &Cell<C::RealField, ArgumentCell<C::RealField>>,
-        failure: &SubdivisionFailure<C::RealField, ArgumentError<C>>,
+        failure: &SubdivisionFailure<C::RealField, ArgumentError<C, E>>,
         _ctx: EvaluationContext<'_, C::RealField>,
     ) -> Result<Option<Vec<Rect<C::RealField>>>, Self::Error> {
         let z = match &failure.error {
@@ -72,6 +72,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::convert::Infallible;
+
     use super::*;
     use crate::argument::LogDerivativeError;
 
@@ -93,19 +95,20 @@ mod tests {
         let raw_z = Complex::new(15.0, -5.0);
         let scaled_z = Complex::new(0.5, 0.0);
 
-        let failure = SubdivisionFailure {
-            failed_child: Rect::new(0.0, 1.0, 0.0, 0.5).unwrap(),
-            error: ArgumentError::BoundarySingularity {
-                raw_z,
-                scaled_z,
-                raw_bounds: raw_domain,
-                scaled_bounds: parent.bounds(),
-                source: LogDerivativeError::NearSingularContour {
-                    z: raw_z,
-                    norm: 0.0,
+        let failure: SubdivisionFailure<f64, ArgumentError<Complex<f64>, Infallible>> =
+            SubdivisionFailure {
+                failed_child: Rect::new(0.0, 1.0, 0.0, 0.5).unwrap(),
+                error: ArgumentError::BoundarySingularity {
+                    raw_z,
+                    scaled_z,
+                    raw_bounds: raw_domain,
+                    scaled_bounds: parent.bounds(),
+                    source: LogDerivativeError::NearSingularContour {
+                        z: raw_z,
+                        norm: 0.0,
+                    },
                 },
-            },
-        };
+            };
 
         let policy = ShiftSplitOnBoundary {
             shift_fraction: 0.1,
@@ -133,13 +136,14 @@ mod tests {
             ArgumentCell::new(1, 0.0, 0.0, 1.0),
         );
 
-        let failure = SubdivisionFailure {
-            failed_child: parent.bounds(),
-            error: ArgumentError::NonIntegerWinding {
-                winding: Complex::new(0.5, 0.0),
-                residual: 0.5,
-            },
-        };
+        let failure: SubdivisionFailure<f64, ArgumentError<Complex<f64>, Infallible>> =
+            SubdivisionFailure {
+                failed_child: parent.bounds(),
+                error: ArgumentError::NonIntegerWinding {
+                    winding: Complex::new(0.5, 0.0),
+                    residual: 0.5,
+                },
+            };
 
         let policy = ShiftSplitOnBoundary {
             shift_fraction: 0.1,

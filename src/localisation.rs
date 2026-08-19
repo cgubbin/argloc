@@ -61,7 +61,7 @@ pub fn localise_from_cells<F, C>(
     integrator_config: IntegratorConfig<C::RealField>,
     zero_tol: C::RealField,
     target: SearchTarget,
-) -> Result<Vec<SingularPointEstimate<C>>, ArgumentError<C>>
+) -> Result<Vec<SingularPointEstimate<C>>, ArgumentError<C, F::Error>>
 where
     F: ComplexFunction<Complex = C>,
     C: ComplexField + Copy + IntegrationOutput<C, Float = C::RealField>,

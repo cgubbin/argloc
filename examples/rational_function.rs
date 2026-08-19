@@ -1,4 +1,6 @@
-use argloc::{ArgumentConfig, ComplexFunction, find_poles, find_zeros};
+use std::convert::Infallible;
+
+use argloc::{ArgumentConfig, ComplexFunction, FunctionBundle, find_poles, find_zeros};
 use num_complex::Complex;
 use quadtree_core::Rect;
 
@@ -7,14 +9,15 @@ struct RationalFunction;
 
 impl ComplexFunction for RationalFunction {
     type Complex = Complex<f64>;
+    type Error = Infallible;
 
-    fn value(&self, z: Self::Complex) -> Self::Complex {
+    fn bundle(
+        &self,
+        z: Self::Complex,
+    ) -> Result<argloc::FunctionBundle<Self::Complex>, Self::Error> {
         let numerator = z - Complex::new(0.5, 0.25);
         let denominator = (z - Complex::new(-0.6, 0.0)) * (z - Complex::new(0.8, -0.3));
-        numerator / denominator
-    }
 
-    fn derivative(&self, z: Self::Complex) -> Self::Complex {
         let a = Complex::new(0.5, 0.25);
         let p = Complex::new(-0.6, 0.0);
         let q = Complex::new(0.8, -0.3);
@@ -25,7 +28,10 @@ impl ComplexFunction for RationalFunction {
         let dn = Complex::new(1.0, 0.0);
         let dd = (z - p) + (z - q);
 
-        (dn * d - n * dd) / (d * d)
+        Ok(FunctionBundle::new(
+            numerator / denominator,
+            (dn * d - n * dd) / (d * d),
+        ))
     }
 }
 

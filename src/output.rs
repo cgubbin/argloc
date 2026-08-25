@@ -21,6 +21,20 @@ pub struct ArgumentLeaf<T> {
     pub data: ArgumentCell<T>,
 }
 
+impl<C: ComplexField> ArgumentResult<C> {
+    pub fn points(&self) -> &[SingularPointEstimate<C>] {
+        &self.points
+    }
+
+    pub fn summary(&self) -> &RunSummary<C::RealField> {
+        &self.summary
+    }
+
+    pub fn termination(&self) -> Termination {
+        self.termination
+    }
+}
+
 impl<T> ArgumentLeaf<T>
 where
     T: Copy + Float,

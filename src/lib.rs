@@ -283,7 +283,8 @@ pub use output::{ArgumentLeaf, ArgumentResult};
 pub use subdivision::ShiftSplitOnBoundary;
 
 pub use quadtree_core::{
-    MaxWeightedScorePolicy, QuadTreeConfig, Rect, ScalerError, run_with_policy,
+    MaxWeightedScorePolicy, QuadTreeConfig, Rect, RunSummary, ScalerError, Termination,
+    run_with_policy,
 };
 
 pub use quad_rs::IntegratorConfig;
@@ -291,6 +292,30 @@ pub use quad_rs::IntegratorConfig;
 use nalgebra::ComplexField;
 use num_traits::{Float, FromPrimitive};
 use quad_rs::{ComplexScalar, IntegrableFloat, IntegrationOutput};
+
+pub trait LocatableFloat<C>:
+    ComplexScalar<Complex = C> + Float + FromPrimitive + IntegrableFloat
+{
+}
+
+impl<T, C> LocatableFloat<C> for T where
+    T: ComplexScalar<Complex = C> + Float + FromPrimitive + IntegrableFloat
+{
+}
+
+pub trait LocatableComplex<T>:
+    ComplexField<RealField = T> + Copy + IntegrationOutput<Self, Float = T>
+where
+    T: LocatableFloat<Self>,
+{
+}
+
+impl<C, T> LocatableComplex<T> for C
+where
+    C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
+    T: LocatableFloat<C>,
+{
+}
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq)]
 pub enum SearchTarget {
@@ -328,8 +353,8 @@ pub fn find_zeros<F, C, T>(
 ) -> Result<ArgumentResult<C>, FindSingularitiesError<C, F::Error>>
 where
     F: ComplexFunction<Complex = C> + Clone,
-    C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
-    T: ComplexScalar<Complex = C> + Float + FromPrimitive + IntegrableFloat,
+    C: LocatableComplex<T>,
+    T: LocatableFloat<C>,
 {
     find_singularities(function, domain, SearchTarget::Zeros, config)
 }
@@ -349,8 +374,8 @@ pub fn find_poles<F, C, T>(
 ) -> Result<ArgumentResult<C>, FindSingularitiesError<C, F::Error>>
 where
     F: ComplexFunction<Complex = C> + Clone,
-    C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
-    T: ComplexScalar<Complex = C> + Float + FromPrimitive + IntegrableFloat,
+    C: LocatableComplex<T>,
+    T: LocatableFloat<C>,
 {
     find_singularities(function, domain, SearchTarget::Poles, config)
 }
@@ -363,8 +388,8 @@ pub fn find_singularities<F, C, T>(
 ) -> Result<ArgumentResult<C>, FindSingularitiesError<C, F::Error>>
 where
     F: ComplexFunction<Complex = C> + Clone,
-    C: ComplexField<RealField = T> + Copy + IntegrationOutput<C, Float = T>,
-    T: ComplexScalar<Complex = C> + Float + FromPrimitive + IntegrableFloat,
+    C: LocatableComplex<T>,
+    T: LocatableFloat<C>,
 {
     let oracle = ArgumentOracle::new(
         function.clone(),

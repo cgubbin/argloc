@@ -2,4 +2,12 @@
 multiple-versions = "warn"
 
 [licenses]
-allow = ["MIT", "Apache-2.0", "Unicode-DFS-2016"]
+allow = ["MIT", "Apache-2.0", "Unicode-3.0"]
+
+[advisories]
+ignore = [
+    # paste is a build-time proc macro that nalgebra pulls in through simba.
+    # The advisory reports it unmaintained, not vulnerable; revisit when
+    # nalgebra or simba drops it.
+    { id = "RUSTSEC-2024-0436", reason = "unmaintained build-time macro via nalgebra/simba; no vulnerability" },
+]

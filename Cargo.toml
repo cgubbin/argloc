@@ -4,7 +4,7 @@ version = "0.3.1"
 edition = "2024"
 rust-version = "1.85"
 description = "adaptive localisation of complex zeros and poles using the argument principle and contour integration"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/cgubbin/argloc"
 homepage = "https://github.com/cgubbin/argloc"
 

@@ -32,7 +32,7 @@
 
       rustToolchain = pkgs.fenix.fromToolchainFile {
         file = ./rust-toolchain.toml;
-        sha256 = "mvUGEOHYJpn3ikC5hckneuGixaC+yGrkMM/liDIDgoU=";
+        sha256 = "MFHoWVcPZKjFrLnQnodCXbUsfZcofGfo9tV9fTTvklg=";
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
@@ -91,7 +91,7 @@
 
       rustToolchain = pkgs.fenix.fromToolchainFile {
         file = ./rust-toolchain.toml;
-        sha256 = "mvUGEOHYJpn3ikC5hckneuGixaC+yGrkMM/liDIDgoU=";
+        sha256 = "MFHoWVcPZKjFrLnQnodCXbUsfZcofGfo9tV9fTTvklg=";
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
@@ -118,7 +118,7 @@
 
       rustToolchain = pkgs.fenix.fromToolchainFile {
         file = ./rust-toolchain.toml;
-        sha256 = "mvUGEOHYJpn3ikC5hckneuGixaC+yGrkMM/liDIDgoU=";
+        sha256 = "MFHoWVcPZKjFrLnQnodCXbUsfZcofGfo9tV9fTTvklg=";
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;

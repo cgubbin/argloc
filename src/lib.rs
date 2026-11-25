@@ -394,8 +394,8 @@ where
     let oracle = ArgumentOracle::new(
         function.clone(),
         config.integrator.clone(),
-        config.zero_tol,
         config.residual_tolerance,
+        config.zero_tol,
         search_target,
     );
 

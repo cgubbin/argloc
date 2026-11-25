@@ -266,3 +266,31 @@ fn reports_multiplicity_for_double_pole() {
     );
     assert_root_near(&result.points, Complex::new(0.25, -0.4));
 }
+
+/// `z^2 - 1` scaled far below the residual tolerance but far above the zero
+/// tolerance: the contour is not near-singular, so both roots are found.
+#[derive(Debug, Clone, Copy)]
+struct SmallQuadratic;
+
+impl ComplexFunction for SmallQuadratic {
+    type Complex = Complex<f64>;
+    type Error = Infallible;
+
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+        let scale = 1e-9;
+        Ok(FunctionBundle::new(
+            (z * z - Complex::new(1.0, 0.0)) * scale,
+            Complex::new(2.0 * scale, 0.0) * z,
+        ))
+    }
+}
+
+#[test]
+fn zero_tolerance_alone_decides_near_singular_contours() {
+    let config = config().with_zero_tol(1e-14).with_residual_tolerance(1e-6);
+    let domain = Rect::new(-2.0, 2.0, -0.7, 0.9).unwrap();
+    let result = find_singularities(SmallQuadratic, domain, SearchTarget::Zeros, config)
+        .expect("a function far above the zero tolerance is not near-singular");
+    assert_root_near(&result.points[..], Complex::new(1.0, 0.0));
+    assert_root_near(&result.points[..], Complex::new(-1.0, 0.0));
+}

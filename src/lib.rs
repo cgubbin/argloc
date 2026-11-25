@@ -144,6 +144,11 @@
 //! a near-singular contour point, the oracle maps that point into the quadtree
 //! coordinate system, and the subdivision policy retries with a shifted split.
 //!
+//! A target just off a cell boundary, but not close enough to count as on it,
+//! can make the contour quadrature fail to converge instead. That failure is
+//! handled the same way: the point on the contour where `|f′/f|` peaks is
+//! located and the split is shifted away from it.
+//!
 //! This preserves the rectangular partition and avoids contour indentation,
 //! whose inclusion/exclusion semantics can make root-count bookkeeping
 //! ambiguous.

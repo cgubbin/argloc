@@ -18,7 +18,7 @@
 
 use crate::{
     SearchTarget,
-    argument::{ArgumentError, LogDerivativeError, compute_winding},
+    argument::{ArgumentError, LogDerivativeError, MinimalIntegratorError, compute_winding},
     cell::ArgumentCell,
     function::ComplexFunction,
 };
@@ -116,6 +116,121 @@ pub(crate) fn rectangle_contour<T: ComplexScalar>(bounds: Rect<T>) -> Contour<T>
     Contour::piecewise_linear(vec![z00, z10, z11, z01, z00])
 }
 
+/// Turns a quadrature failure caused by a target close to the contour into a
+/// near-singular contour point, so it can be recovered like a target on the
+/// contour.
+///
+/// A target just off the contour, but not within `zero_tol` of it, gives
+/// `f'/f` a peak that the quadrature cannot resolve without refining below its
+/// minimum piece width. The integrator then reports `PieceTooSmall`, which
+/// carries no location, or `PossibleSingularity`, which does. Without a
+/// location the contour is searched for the point where `|f'/f|` is largest.
+/// Other errors, and failures where no such point can be found, are returned
+/// unchanged.
+fn locate_unresolved_contour_point<F, T>(
+    function: &F,
+    raw_bounds: Rect<T>,
+    err: ArgumentError<F::Complex, F::Error>,
+) -> ArgumentError<F::Complex, F::Error>
+where
+    F: ComplexFunction,
+    F::Complex: ComplexField<RealField = T> + Copy,
+    T: ComplexScalar<Complex = F::Complex> + Float + FromPrimitive,
+{
+    let located = match &err {
+        ArgumentError::Integration(MinimalIntegratorError::PossibleSingularity { singularity }) => {
+            Some(*singularity)
+        }
+        ArgumentError::Integration(MinimalIntegratorError::PieceTooSmall) => {
+            peak_log_derivative_on_contour(function, raw_bounds)
+        }
+        _ => None,
+    };
+
+    match located {
+        Some(z) => {
+            let norm = function
+                .bundle(z)
+                .map(|bundle| bundle.value().modulus())
+                .unwrap_or_else(|_| <T as Float>::nan());
+            ArgumentError::IntegrandEvaluation(LogDerivativeError::NearSingularContour { z, norm })
+        }
+        None => err,
+    }
+}
+
+/// Finds the point on the rectangle's boundary where `|f'/f|` is largest.
+///
+/// Each edge is sampled on a uniform grid, and the grid is repeatedly refined
+/// around the best sample. Points where `f` cannot be evaluated are skipped.
+fn peak_log_derivative_on_contour<F, T>(function: &F, bounds: Rect<T>) -> Option<F::Complex>
+where
+    F: ComplexFunction,
+    F::Complex: ComplexField<RealField = T> + Copy,
+    T: ComplexScalar<Complex = F::Complex> + Float + FromPrimitive,
+{
+    const SAMPLES: usize = 64;
+    const LEVELS: usize = 4;
+
+    let corners = [
+        T::complex(bounds.x_min, bounds.y_min),
+        T::complex(bounds.x_max, bounds.y_min),
+        T::complex(bounds.x_max, bounds.y_max),
+        T::complex(bounds.x_min, bounds.y_max),
+        T::complex(bounds.x_min, bounds.y_min),
+    ];
+
+    let magnitude = |z: F::Complex| -> Option<T> {
+        let bundle = function.bundle(z).ok()?;
+        let value = bundle.value().modulus();
+        let derivative = bundle.derivative().modulus();
+        if value.is_nan() || derivative.is_nan() {
+            return None;
+        }
+        Some(if value == T::zero() {
+            <T as Float>::infinity()
+        } else {
+            derivative / value
+        })
+    };
+
+    let steps = T::from_usize(SAMPLES)?;
+    let mut best: Option<(F::Complex, T)> = None;
+
+    for edge in corners.windows(2) {
+        let (start, end) = (edge[0], edge[1]);
+        let at = |t: T| start + (end - start) * F::Complex::from_real(t);
+
+        let (mut lo, mut hi) = (T::zero(), T::one());
+        let mut edge_best: Option<(T, T)> = None;
+
+        for _ in 0..LEVELS {
+            let width = (hi - lo) / steps;
+            for i in 0..=SAMPLES {
+                let t = lo + width * T::from_usize(i)?;
+                if let Some(m) = magnitude(at(t)) {
+                    if edge_best.is_none_or(|(_, best_m)| m > best_m) {
+                        edge_best = Some((t, m));
+                    }
+                }
+            }
+            let Some((t, _)) = edge_best else {
+                break;
+            };
+            lo = Float::max(t - width, T::zero());
+            hi = Float::min(t + width, T::one());
+        }
+
+        if let Some((t, m)) = edge_best {
+            if best.is_none_or(|(_, best_m)| m > best_m) {
+                best = Some((at(t), m));
+            }
+        }
+    }
+
+    best.map(|(z, _)| z)
+}
+
 impl<F, T> QuadOracle<T> for ArgumentOracle<F, T>
 where
     F: ComplexFunction,
@@ -139,7 +254,10 @@ where
             self.zero_tol,
             self.search_target,
         )
-        .map_err(|err| self.map_argument_error(err, ctx.scaler.scaled_domain(), raw_bounds, ctx))?;
+        .map_err(|err| {
+            let err = locate_unresolved_contour_point(&self.function, raw_bounds, err);
+            self.map_argument_error(err, ctx.scaler.scaled_domain(), raw_bounds, ctx)
+        })?;
 
         let score = if winding.residual <= self.residual_tolerance {
             self.score(
@@ -367,6 +485,52 @@ mod tests {
 
                 assert_eq!(raw_bounds, raw_domain);
                 assert_eq!(err_scaled_bounds, scaled_bounds);
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn unresolvable_root_near_contour_returns_boundary_singularity_error() {
+        #[derive(Debug, Clone, Copy)]
+        struct ScaledLinear {
+            root: Complex<f64>,
+        }
+
+        impl ComplexFunction for ScaledLinear {
+            type Complex = Complex<f64>;
+            type Error = Infallible;
+
+            fn bundle(
+                &self,
+                z: Self::Complex,
+            ) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+                Ok(FunctionBundle::new(
+                    (z - self.root) * 1e3,
+                    Complex::new(1e3, 0.0),
+                ))
+            }
+        }
+
+        let bounds = Rect::new(0.0, 1.0, 0.0, 1.0).unwrap();
+        // Outside the cell, 1e-12 from its right edge: |f| on the contour
+        // stays above zero_tol, but the quadrature cannot resolve f'/f.
+        let root = Complex::new(1.0 + 1e-12, 0.3);
+
+        let mut oracle = ArgumentOracle::new(
+            ScaledLinear { root },
+            IntegratorConfig::default(),
+            1e-8,
+            1e-12,
+            SearchTarget::Zeros,
+        );
+
+        let scaler = Scaler2D::unit_square(bounds).unwrap();
+        let ctx = EvaluationContext::new(&scaler);
+
+        match oracle.evaluate(bounds, ctx).unwrap_err() {
+            ArgumentError::BoundarySingularity { raw_z, .. } => {
+                assert!((raw_z - root).norm() < 1e-5, "located {raw_z}");
             }
             other => panic!("unexpected error: {other:?}"),
         }

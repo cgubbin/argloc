@@ -297,6 +297,7 @@ pub use quad_rs::IntegratorConfig;
 use nalgebra::ComplexField;
 use num_traits::{Float, FromPrimitive};
 use quad_rs::{ComplexScalar, IntegrableFloat, IntegrationOutput};
+use quadtree_core::{EvaluationContext, QuadOracle, QuadTreeError, Scaler2D};
 
 pub trait LocatableFloat<C>:
     ComplexScalar<Complex = C> + Float + FromPrimitive + IntegrableFloat
@@ -396,7 +397,8 @@ where
     C: LocatableComplex<T>,
     T: LocatableFloat<C>,
 {
-    let oracle = ArgumentOracle::new(
+    let start = std::time::Instant::now();
+    let mut oracle = ArgumentOracle::new(
         function.clone(),
         config.integrator.clone(),
         config.residual_tolerance,
@@ -404,9 +406,38 @@ where
         search_target,
     );
 
+    // A domain whose own contour encloses no target, with an integer winding,
+    // is resolved as it stands. The refinement engine would still split it
+    // once per step of its convergence window, evaluating twelve more contours
+    // that can only confirm the empty count.
+    let scaler = Scaler2D::unit_square(domain).map_err(QuadTreeError::from)?;
+    let first = oracle.evaluate(domain, EvaluationContext::new(&scaler));
+    if let Ok(cell) = &first
+        && cell.root_count == 0
+        && cell.score < config.quad_tree.target_score
+    {
+        return Ok(ArgumentResult {
+            points: Vec::new(),
+            leaves: vec![ArgumentLeaf {
+                bounds: domain,
+                depth: 0,
+                data: cell.clone(),
+            }],
+            summary: RunSummary {
+                iterations: 0,
+                elapsed: start.elapsed(),
+                best_measure: Some(cell.score),
+            },
+            termination: Termination::Converged,
+        });
+    }
+
     let result = run_with_policy(
         domain,
-        oracle,
+        FirstEvaluation {
+            oracle,
+            first: Some((domain, first)),
+        },
         MaxWeightedScorePolicy,
         ShiftSplitOnBoundary {
             shift_fraction: config.boundary_shift_fraction,
@@ -429,4 +460,34 @@ where
         summary: result.summary,
         termination: result.termination,
     })
+}
+
+/// An oracle that answers its first request for `first`'s bounds with the
+/// evaluation already made there, so the domain contour is integrated once.
+struct FirstEvaluation<O: QuadOracle<T>, T> {
+    oracle: O,
+    first: Option<(Rect<T>, Evaluation<O, T>)>,
+}
+
+/// One cell evaluation of an oracle.
+type Evaluation<O, T> = Result<<O as QuadOracle<T>>::Data, <O as QuadOracle<T>>::Error>;
+
+impl<O, T> QuadOracle<T> for FirstEvaluation<O, T>
+where
+    O: QuadOracle<T>,
+    T: PartialEq,
+{
+    type Data = O::Data;
+    type Error = O::Error;
+
+    fn evaluate(
+        &mut self,
+        bounds: Rect<T>,
+        ctx: EvaluationContext<'_, T>,
+    ) -> Result<Self::Data, Self::Error> {
+        match self.first.take() {
+            Some((at, result)) if at == bounds => result,
+            _ => self.oracle.evaluate(bounds, ctx),
+        }
+    }
 }

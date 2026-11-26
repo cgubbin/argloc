@@ -294,3 +294,90 @@ fn zero_tolerance_alone_decides_near_singular_contours() {
     assert_root_near(&result.points[..], Complex::new(1.0, 0.0));
     assert_root_near(&result.points[..], Complex::new(-1.0, 0.0));
 }
+
+/// `z − 10`, counting its evaluations.
+#[derive(Debug, Clone)]
+struct Counted {
+    evaluations: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl ComplexFunction for Counted {
+    type Complex = Complex<f64>;
+    type Error = Infallible;
+
+    fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+        self.evaluations
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Ok(FunctionBundle::new(
+            z - Complex::new(10.0, 0.0),
+            Complex::new(1.0, 0.0),
+        ))
+    }
+}
+
+#[test]
+fn an_empty_domain_is_resolved_by_its_own_contour() {
+    use std::sync::atomic::Ordering::Relaxed;
+    let domain = Rect::new(-2.0, 2.0, -1.5, 1.5).unwrap();
+    // The default convergence window, which would otherwise split the domain
+    // once per step.
+    let config = ArgumentConfig::new(1e-3);
+    let function = Counted {
+        evaluations: Default::default(),
+    };
+    let result = find_singularities(
+        function.clone(),
+        domain,
+        SearchTarget::Zeros,
+        config.clone(),
+    )
+    .unwrap();
+    assert!(result.points.is_empty());
+    assert_eq!(result.leaves.len(), 1);
+    assert_eq!(result.leaves[0].bounds, domain);
+    assert_eq!(result.leaves[0].data.root_count, 0);
+    assert_eq!(result.termination, argloc::Termination::Converged);
+
+    // One contour: as many evaluations as counting the domain alone.
+    let alone = Counted {
+        evaluations: Default::default(),
+    };
+    let mut oracle = argloc::ArgumentOracle::new(
+        alone.clone(),
+        config.integrator.clone(),
+        config.residual_tolerance,
+        config.zero_tol,
+        SearchTarget::Zeros,
+    );
+    let scaler = quadtree_core::Scaler2D::unit_square(domain).unwrap();
+    quadtree_core::QuadOracle::evaluate(
+        &mut oracle,
+        domain,
+        quadtree_core::EvaluationContext::new(&scaler),
+    )
+    .unwrap();
+    assert_eq!(
+        function.evaluations.load(Relaxed),
+        alone.evaluations.load(Relaxed)
+    );
+}
+
+#[test]
+fn a_domain_with_a_root_is_still_refined_and_localised() {
+    let domain = Rect::new(8.0, 12.5, -1.5, 1.5).unwrap();
+    let function = Counted {
+        evaluations: Default::default(),
+    };
+    let result = find_singularities(
+        function,
+        domain,
+        SearchTarget::Zeros,
+        ArgumentConfig::new(1e-3),
+    )
+    .unwrap();
+    assert_eq!(
+        result.points.iter().map(|r| r.multiplicity).sum::<usize>(),
+        1
+    );
+    assert_root_near(&result.points[..], Complex::new(10.0, 0.0));
+}

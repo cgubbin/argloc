@@ -445,7 +445,14 @@ where
         config.quad_tree,
     )?;
 
-    let leaves: Vec<ArgumentLeaf<T>> = result.iter().map(ArgumentLeaf::from_raw_leaf).collect();
+    // quadtree-core maps leaves back from the unit square as
+    // `x_min + u (x_max − x_min)`, which can round one ulp outside the domain
+    // at `u = 1`; clamp so that leaves and enclosures stay inside it.
+    let leaves: Vec<ArgumentLeaf<T>> = result
+        .iter()
+        .map(ArgumentLeaf::from_raw_leaf)
+        .map(|leaf| leaf.clamped_to(domain))
+        .collect();
     let points = crate::localisation::localise_from_cells(
         &function,
         &leaves[..],

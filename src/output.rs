@@ -39,6 +39,17 @@ impl<T> ArgumentLeaf<T>
 where
     T: Copy + Float,
 {
+    /// The leaf with its bounds clamped into `domain`: an edge that rounded
+    /// outside the domain is moved onto the domain's edge.
+    pub(crate) fn clamped_to(mut self, domain: quadtree_core::Rect<T>) -> Self {
+        let b = &mut self.bounds;
+        b.x_min = b.x_min.max(domain.x_min);
+        b.x_max = b.x_max.min(domain.x_max);
+        b.y_min = b.y_min.max(domain.y_min);
+        b.y_max = b.y_max.min(domain.y_max);
+        self
+    }
+
     pub fn from_raw_leaf(leaf: RawLeaf<'_, T, ArgumentCell<T>>) -> Self {
         Self {
             bounds: leaf.bounds(),

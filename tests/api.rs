@@ -381,3 +381,41 @@ fn a_domain_with_a_root_is_still_refined_and_localised() {
     );
     assert_root_near(&result.points[..], Complex::new(10.0, 0.0));
 }
+
+/// `x_min + 1 · (x_max − x_min)` rounds one ulp above `x_max` for this domain;
+/// the reported leaves and enclosures still lie inside it, with boundary edges
+/// equal to the domain's.
+#[test]
+fn leaves_and_enclosures_lie_inside_an_outward_rounding_domain() {
+    let (x_min, x_max) = (-0.14175649807409718, -0.06175649807409717);
+    assert!(x_min + 1.0 * (x_max - x_min) > x_max);
+    let domain = Rect::new(x_min, x_max, -0.04, 0.04).unwrap();
+
+    #[derive(Debug, Clone, Copy)]
+    struct NearEdge;
+    impl ComplexFunction for NearEdge {
+        type Complex = Complex<f64>;
+        type Error = Infallible;
+        fn bundle(&self, z: Self::Complex) -> Result<FunctionBundle<Self::Complex>, Self::Error> {
+            let root = Complex::new(-0.0701, 0.013);
+            Ok(FunctionBundle::new(z - root, Complex::new(1.0, 0.0)))
+        }
+    }
+
+    let result = find_singularities(NearEdge, domain, SearchTarget::Zeros, config()).unwrap();
+    let inside = |r: &Rect<f64>| {
+        domain.x_min <= r.x_min
+            && r.x_max <= domain.x_max
+            && domain.y_min <= r.y_min
+            && r.y_max <= domain.y_max
+    };
+    assert!(result.leaves.iter().all(|leaf| inside(&leaf.bounds)));
+    assert!(result.points().iter().all(|point| inside(&point.enclosure)));
+    assert!(
+        result
+            .leaves
+            .iter()
+            .any(|leaf| leaf.bounds.x_max == domain.x_max)
+    );
+    assert_root_near(result.points(), Complex::new(-0.0701, 0.013));
+}
